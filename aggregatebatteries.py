@@ -254,6 +254,10 @@ class DbusAggBatService(object):
         self._dbusservice.add_path("/Io/AllowToDischarge", None, writeable=True)
         self._dbusservice.add_path("/Io/AllowToBalance", None, writeable=True)
 
+        # register VeDbusService after all paths where added
+        logging.info("### Registering VeDbusService")
+        self._dbusservice.register()
+        
         x = Thread(target=self._startMonitor)
         x.start()
 
@@ -375,6 +379,7 @@ class DbusAggBatService(object):
                                     gettextcallback=lambda a, x: "{:.3f}V".format(x),
                                 )
 
+                        
                         # Check if Nr. of cells is equal
                         if (
                             self._dbusMon.dbusmon.get_value(
