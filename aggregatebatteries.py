@@ -30,7 +30,7 @@ from threading import Thread
 sys.path.append("/opt/victronenergy/dbus-systemcalc-py/ext/velib_python")
 from vedbus import VeDbusService  # noqa: E402
 
-VERSION = "3.4"
+VERSION = "3.41"
 
 class SystemBus(dbus.bus.BusConnection):
     def __new__(cls):
@@ -120,18 +120,20 @@ class DbusAggBatService(object):
                 )
                 sys.exit()
 
+        # Create the management objects, as specified in the ccgx dbus-api document
+        self._dbusservice.add_path("/Mgmt/ProcessName", __file__)
+        self._dbusservice.add_path("/Mgmt/ProcessVersion", "Python " + platform.python_version())
+        self._dbusservice.add_path("/Mgmt/Connection", "Virtual")
+
         # Create the mandatory objects
-        self._dbusservice.add_mandatory_paths(
-            processname=__file__,
-            processversion="0.0",
-            connection="Virtual",
-            deviceinstance=0,
-            productid=0,
-            productname="AggregateBatteries",
-            firmwareversion=VERSION,
-            hardwareversion="0.0",
-            connected=1,
-        )
+        self._dbusservice.add_path("/DeviceInstance", 99)
+        # this product ID was randomly selected - please exchange, if interference with another component
+        self._dbusservice.add_path("/ProductId", 0xBA44)
+        self._dbusservice.add_path("/ProductName", "AggregateBatteries")
+        self._dbusservice.add_path("/FirmwareVersion", VERSION)
+        self._dbusservice.add_path("/HardwareVersion", VERSION)
+        self._dbusservice.add_path("/Connected", 1)
+        
 
         # Create DC paths
         self._dbusservice.add_path(
