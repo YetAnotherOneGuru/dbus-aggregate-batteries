@@ -18,6 +18,7 @@ from gi.repository import GLib
 import logging
 import sys
 import os
+import platform
 import dbus
 import re
 import settings
