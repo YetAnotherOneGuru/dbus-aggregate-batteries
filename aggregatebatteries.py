@@ -32,6 +32,18 @@ from vedbus import VeDbusService  # noqa: E402
 
 VERSION = "3.4"
 
+class SystemBus(dbus.bus.BusConnection):
+    def __new__(cls):
+        return dbus.bus.BusConnection.__new__(cls, dbus.bus.BusConnection.TYPE_SYSTEM)
+
+
+class SessionBus(dbus.bus.BusConnection):
+    def __new__(cls):
+        return dbus.bus.BusConnection.__new__(cls, dbus.bus.BusConnection.TYPE_SESSION)
+
+
+def get_bus() -> dbus.bus.BusConnection:
+    return SessionBus() if "DBUS_SESSION_BUS_ADDRESS" in os.environ else SystemBus()
 
 class DbusAggBatService(object):
 
@@ -48,11 +60,7 @@ class DbusAggBatService(object):
         self._MaxDischargeCurrent_old = 0
         # implementing hysteresis for allowing discharge
         self._fullyDischarged = False
-        self._dbusConn = (
-            dbus.SessionBus()
-            if "DBUS_SESSION_BUS_ADDRESS" in os.environ
-            else dbus.SystemBus()
-        )
+        self._dbusConn = get_bus()
         logging.info("### Initialise VeDbusService ")
         self._dbusservice = VeDbusService(servicename, self._dbusConn, register=False)
         logging.info("#### Done: Init of VeDbusService ")
