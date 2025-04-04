@@ -53,7 +53,9 @@ class DbusAggBatService(object):
             if "DBUS_SESSION_BUS_ADDRESS" in os.environ
             else dbus.SystemBus()
         )
+        logging.info("### Initialise VeDbusService ")
         self._dbusservice = VeDbusService(servicename, self._dbusConn, register=False)
+        logging.info("#### Done: Init of VeDbusService ")
         self._timeOld = tt.time()
         # written when dynamic CVL limit activated
         self._DCfeedActive = False
