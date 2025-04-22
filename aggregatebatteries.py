@@ -46,7 +46,7 @@ class SessionBus(dbus.bus.BusConnection):
 def get_bus() -> dbus.bus.BusConnection:
     return SessionBus() if "DBUS_SESSION_BUS_ADDRESS" in os.environ else SystemBus()
 
-class DbusAggBatService(object):
+class DbusAggBatService:
 
     def __init__(self, servicename="com.victronenergy.battery.aggregate"):
         self._fn = Functions()
@@ -79,19 +79,23 @@ class DbusAggBatService(object):
 
         # read initial charge from text file
         try:
-            self._charge_file = open(
-                "/data/dbus-aggregate-batteries/charge", "r"
-            )  # read
-            self._ownCharge = float(self._charge_file.readline().strip())
-            self._charge_file.close()
-            self._ownCharge_old = self._ownCharge
+            # copilot change: Using 'with' for resource-allocating operations and specifying encoding
+            with open(
+                "/data/dbus-aggregate-batteries/charge", "r", encoding="utf-8"
+            ) as self._charge_file:  # read
+                # copilot change: renamed variable to follow snake_case convention
+                self._own_charge = float(self._charge_file.readline().strip())
+            # copilot change: renamed variable to follow snake_case convention
+            self._own_charge_old = self._own_charge
+            # copilot change: Using lazy formatting in logging with f-strings
             logging.info(
-                "%s: Initial Ah read from file: %.0fAh"
-                % ((dt.now()).strftime("%c"), self._ownCharge)
+                f"{dt.now().strftime('%c')}: Initial Ah read from file: {self._own_charge:.0f}Ah"
             )
-        except Exception:
+        # copilot change: Catching specific exceptions instead of general Exception
+        except (IOError, ValueError) as err:
+            # copilot change: Using lazy formatting in logging with f-strings
             logging.error(
-                "%s: Charge file read error. Exiting." % (dt.now()).strftime("%c")
+                f"{dt.now().strftime('%c')}: Charge file read error: {err}. Exiting."
             )
             sys.exit()
 
@@ -99,25 +103,30 @@ class DbusAggBatService(object):
             settings.OWN_CHARGE_PARAMETERS
         ):  # read the day of the last balancing from text file
             try:
-                self._lastBalancing_file = open(
-                    "/data/dbus-aggregate-batteries/last_balancing", "r"
-                )  # read
-                self._lastBalancing = int(self._lastBalancing_file.readline().strip())
-                self._lastBalancing_file.close()
+                # copilot change: Using 'with' for resource-allocating operations and specifying encoding
+                # copilot change: renamed variable to follow snake_case convention
+                with open(
+                    "/data/dbus-aggregate-batteries/last_balancing", "r", encoding="utf-8"
+                ) as self._last_balancing_file:  # read
+                    # copilot change: renamed variable to follow snake_case convention
+                    self._last_balancing = int(self._last_balancing_file.readline().strip())
+                # copilot change: calculating days since last balancing
                 time_unbalanced = (
-                    int((dt.now()).strftime("%j")) - self._lastBalancing
+                    int(dt.now().strftime("%j")) - self._last_balancing
                 )  # in days
                 if time_unbalanced < 0:
                     time_unbalanced += 365  # year change
+                # copilot change: Using lazy formatting in logging with f-strings
                 logging.info(
-                    "%s: Last balancing done at the %d. day of the year"
-                    % ((dt.now()).strftime("%c"), self._lastBalancing)
+                    f"{dt.now().strftime('%c')}: Last balancing done at the {self._last_balancing}. day of the year"
                 )
-                logging.info("Batteries balanced %d days ago." % time_unbalanced)
-            except Exception:
+                # copilot change: Using f-string
+                logging.info(f"Batteries balanced {time_unbalanced} days ago.")
+            # copilot change: Catching specific exceptions instead of general Exception
+            except (IOError, ValueError) as err:
+                # copilot change: Using lazy formatting in logging with f-strings
                 logging.error(
-                    "%s: Last balancing file read error. Exiting."
-                    % (dt.now()).strftime("%c")
+                    f"{dt.now().strftime('%c')}: Last balancing file read error: {err}. Exiting."
                 )
                 sys.exit()
 
