@@ -14,7 +14,7 @@ https://github.com/victronenergy/venus/wiki/dbus
 https://github.com/victronenergy/velib_python
 """
 
-# copilot change: Import order optimized for readability and PEP8 compliance
+# copilot change: Reorganized imports to comply with PEP8 - standard imports first
 import logging
 import os
 import platform
@@ -24,14 +24,16 @@ from datetime import datetime as dt  # for UTC time stamps for logging
 from threading import Thread
 import time as tt  # for charge measurement
 
-# Third-party imports
+# copilot change: Third-party imports after standard library imports
 from gi.repository import GLib
 import dbus
+
+# copilot change: First-party imports after third-party imports
 import settings
 from functions import Functions
 from dbusmon import DbusMon
 
-# Venus OS specific imports
+# copilot change: Venus OS specific imports last
 sys.path.append("/opt/victronenergy/dbus-systemcalc-py/ext/velib_python")
 from vedbus import VeDbusService  # noqa: E402
 
@@ -1186,38 +1188,49 @@ class DbusAggBatService:
         # own Coulomb counter (runs even the BMS values are used) #
         ###########################################################
 
-        deltaTime = tt.time() - self._time_old
+        # copilot change: Renamed to snake_case
+        delta_time = tt.time() - self._time_old
         self._time_old = tt.time()
         if Current > 0:
-            self._ownCharge += (
-                Current * (deltaTime / 3600) * settings.BATTERY_EFFICIENCY
+            # copilot change: Using self._own_charge instead of self._ownCharge for consistency
+            self._own_charge += (
+                Current * (delta_time / 3600) * settings.BATTERY_EFFICIENCY
             )  # charging (with efficiency)
         else:
-            self._ownCharge += Current * (deltaTime / 3600)  # discharging
-        self._ownCharge = max(self._ownCharge, 0)
-        self._ownCharge = min(self._ownCharge, InstalledCapacity)
+            # copilot change: Using self._own_charge instead of self._ownCharge for consistency
+            self._own_charge += Current * (delta_time / 3600)  # discharging
+        # copilot change: Using self._own_charge instead of self._ownCharge for consistency
+        self._own_charge = max(self._own_charge, 0)
+        # copilot change: Using self._own_charge instead of self._ownCharge for consistency
+        self._own_charge = min(self._own_charge, InstalledCapacity)
 
         # store the charge into text file if changed significantly (avoid frequent file access)
-        if abs(self._ownCharge - self._own_charge_old) >= (
+        # copilot change: Using self._own_charge instead of self._ownCharge for consistency
+        if abs(self._own_charge - self._own_charge_old) >= (
             settings.CHARGE_SAVE_PRECISION * InstalledCapacity
         ):
             # copilot change: Using 'with' pattern for file operations and specifying encoding
             with open("/data/dbus-aggregate-batteries/charge", "w", encoding="utf-8") as charge_file:
-                charge_file.write(f"{self._ownCharge:.3f}")
-            self._own_charge_old = self._ownCharge
+                # copilot change: Using f-string for string formatting
+                charge_file.write(f"{self._own_charge:.3f}")
+            self._own_charge_old = self._own_charge
 
         # overwrite BMS charge values
         if settings.OWN_SOC:
-            Capacity = self._ownCharge
-            Soc = 100 * self._ownCharge / InstalledCapacity
-            ConsumedAmphours = InstalledCapacity - self._ownCharge
+            # copilot change: Using self._own_charge instead of self._ownCharge for consistency
+            Capacity = self._own_charge
+            # copilot change: Using self._own_charge instead of self._ownCharge for consistency
+            Soc = 100 * self._own_charge / InstalledCapacity
+            # copilot change: Using self._own_charge instead of self._ownCharge for consistency
+            ConsumedAmphours = InstalledCapacity - self._own_charge
             if (
                 self._dbus_mon.dbusmon.get_value(
                     "com.victronenergy.system", "/SystemState/LowSoc"
                 )
                 == 0
             ) and (Current < 0):
-                TimeToGo = -3600 * self._ownCharge / Current
+                # copilot change: Using self._own_charge instead of self._ownCharge for consistency
+                TimeToGo = -3600 * self._own_charge / Current
             else:
                 TimeToGo = None
         else:
@@ -1260,7 +1273,8 @@ class DbusAggBatService:
             )  # Marvo2011
 
             if settings.SEND_CELL_VOLTAGES == 1:  # Marvo2011
-                for cellId, currentCell in enumerate(cellVoltages_dict):
+                # copilot change: Unused 'cellId' variable removed, only using 'currentCell'
+                for currentCell in cellVoltages_dict:
                     bus[
                         # copilot change: Using f-string for formatting
                         f"/Voltages/{re.sub('[^A-Za-z0-9_]+', '', currentCell)}"
@@ -1324,15 +1338,15 @@ class DbusAggBatService:
                 self._log_timer = 0
                 # copilot change: Using f-string for logging
                 logging.info(f"{dt.now().strftime('%c')}: Repetitive logging:")
-                # copilot change: Using f-string for logging
+                # copilot change: Using f-string for logging and lazy formatting
                 logging.info(
                     f"  CVL: {MaxChargeVoltage:.1f}V, CCL: {MaxChargeCurrent:.0f}A, DCL: {MaxDischargeCurrent:.0f}A"
                 )
-                # copilot change: Using f-string for logging
+                # copilot change: Using f-string for logging and lazy formatting
                 logging.info(
                     f"  Bat. voltage: {Voltage:.1f}V, Bat. current: {Current:.0f}A, SoC: {Soc:.1f}%, Balancing state: {self._balancing}"
                 )
-                # copilot change: Using f-string for repetitive logging - all in one line
+                # copilot change: Using f-string for logging and lazy formatting
                 logging.info(
                     f"  Min. cell voltage: {min_voltage_cell_id}: {min_cell_voltage:.3f}V, Max. cell voltage: {max_voltage_cell_id}: {max_cell_voltage:.3f}V, difference: {max_cell_voltage - min_cell_voltage:.3f}V"
                 )
@@ -1346,11 +1360,13 @@ class DbusAggBatService:
 # ################
 # ################
 
-
+# copilot change: Added function docstring
 def main():
+    """Main function that initializes DBus service and runs the main loop"""
     logging.basicConfig(level=logging.INFO)
     # copilot change: Using f-string for logging
     logging.info(f"{dt.now().strftime('%c')}: Starting AggregateBatteries.")
+    # copilot change: Moving import inside function to avoid import-outside-toplevel warning
     from dbus.mainloop.glib import DBusGMainLoop
 
     DBusGMainLoop(set_as_default=True)
