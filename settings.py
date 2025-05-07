@@ -1,3 +1,10 @@
+"""
+Settings module for dbus-aggregate-batteries.
+Contains configuration parameters for hardware, DBus connectivity, 
+and battery charging/discharging parameters.
+"""
+# #copilot change: Added module docstring above
+
 # ######################################
 # ######## Hardware settings ###########
 # ######################################
@@ -121,7 +128,7 @@ MIN_CELL_HYSTERESIS = 0.3
 
 # Cell balancing (with BALANCING_VOLTAGE) goal in volts. When reached, the charging voltage limit per cell is reduced
 # from BALANCING_VOLTAGE down to CHARGE_VOLTAGE from the CHARGE_VOLTAGE_LIST. If due to heavy disbalance the dynamic CVL
-#  was activated and DC-coupled PV feed-in was de-activated, these measures are finished when the balancing goal is reached.
+# was activated and DC-coupled PV feed-in was de-activated, these measures are finished when the balancing goal is reached.
 CELL_DIFF_MAX = 0.025
 
 # Charge fed into batteries is multiplied by efficiency in order to consider losses and enhance SoC counter precision.
@@ -134,11 +141,16 @@ MAX_CHARGE_CURRENT = 200
 MAX_DISCHARGE_CURRENT = 200
 
 # Settings limiting charge current when at least one cell is getting full or empty. The lists may have any length,
-# but the length must be same for voltage and current. Linear interpolation is used for values between. 
+# but the length must be same for voltage and current. Linear interpolation is used for values between.
 # The charge current limitation of empty cell reduces inverter power in case when the battery has to be charged from grid.
-
-CELL_CHARGE_LIMITING_VOLTAGE = [MIN_CELL_VOLTAGE, MIN_CELL_VOLTAGE + 0.05, BALANCING_VOLTAGE - 0.1, BALANCING_VOLTAGE, MAX_CELL_VOLTAGE]  # [min, ... ,max]; low voltage: limiting current from grid
-CELL_CHARGE_LIMITED_CURRENT = [0.2, 1, 1, 0.1, 0] # [min, ... ,max]
+CELL_CHARGE_LIMITING_VOLTAGE = [
+    MIN_CELL_VOLTAGE, 
+    MIN_CELL_VOLTAGE + 0.05, 
+    BALANCING_VOLTAGE - 0.1, 
+    BALANCING_VOLTAGE, 
+    MAX_CELL_VOLTAGE
+]  # [min, ... ,max]; low voltage: limiting current from grid
+CELL_CHARGE_LIMITED_CURRENT = [0.2, 1, 1, 0.1, 0]  # [min, ... ,max]
 
 # Settings limiting discharge current if at least one cell is getting empty. The lists may have any length,
 # but the same length for voltage and current. Linear interpolation is used for values between.

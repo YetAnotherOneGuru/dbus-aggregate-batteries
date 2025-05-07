@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 
+"""Module for monitoring the D-Bus interface of Victron Energy devices."""
+
 import sys
 import logging
+from dbusmonitor import DbusMonitor
+from dbus.mainloop.glib import DBusGMainLoop
 
 sys.path.append("/opt/victronenergy/dbus-systemcalc-py/ext/velib_python")
-from dbusmonitor import DbusMonitor  # noqa: E402
-from dbus.mainloop.glib import DBusGMainLoop  # noqa: E402
-
 # from gi.repository import GLib  # not accessed
 
 
 class DbusMon:
+    """Class for monitoring D-Bus services related to Victron Energy batteries and systems."""
+    
     def __init__(self):
         dummy = {"code": None, "whenToLog": "configChange", "accessLevel": None}
         self.monitorlist = {
@@ -112,8 +115,17 @@ class DbusMon:
         self.dbusmon = DbusMonitor(self.monitorlist)
 
     def print_values(self, service, mon_list):
+        """Print all monitor values for a specific service.
+        
+        Args:
+            service: The D-Bus service name
+            mon_list: The monitor list key
+            
+        Returns:
+            Boolean: Always returns True
+        """
         for path in self.monitorlist[mon_list]:
-            logging.info("%s: %s" % (path, self.dbusmon.get_value(service, path)))
+            logging.info("%(path)s: %(value)s", {"path": path, "value": self.dbusmon.get_value(service, path)})
         logging.info("\n")
         return True
 
@@ -122,8 +134,8 @@ class DbusMon:
 # test program #
 ################
 
-
 def main():
+    """Main function to test D-Bus monitoring functionality."""
     logging.basicConfig(level=logging.INFO)
     DBusGMainLoop(set_as_default=True)
     dbusmon = DbusMon()

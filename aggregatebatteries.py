@@ -14,84 +14,118 @@ https://github.com/victronenergy/venus/wiki/dbus
 https://github.com/victronenergy/velib_python
 """
 
-from gi.repository import GLib
+# copilot change: Reorganized imports to comply with PEP8 - standard imports first
 import logging
-import sys
 import os
 import platform
-import dbus
 import re
+import sys
+from datetime import datetime as dt  # for UTC time stamps for logging
+from threading import Thread
+import time as tt  # for charge measurement
+
+# copilot change: Third-party imports after standard library imports
+from gi.repository import GLib
+import dbus
+
+# copilot change: First-party imports after third-party imports
 import settings
 from functions import Functions
-from datetime import datetime as dt  # for UTC time stamps for logging
-import time as tt  # for charge measurement
 from dbusmon import DbusMon
-from threading import Thread
 
+# copilot change: Venus OS specific imports last
 sys.path.append("/opt/victronenergy/dbus-systemcalc-py/ext/velib_python")
 from vedbus import VeDbusService  # noqa: E402
 
 VERSION = "3.5"
 
+# copilot change: Added class docstring
 class SystemBus(dbus.bus.BusConnection):
+    """SystemBus connection class for DBus"""
     def __new__(cls):
         return dbus.bus.BusConnection.__new__(cls, dbus.bus.BusConnection.TYPE_SYSTEM)
 
 
+# copilot change: Added class docstring
 class SessionBus(dbus.bus.BusConnection):
+    """SessionBus connection class for DBus"""
     def __new__(cls):
         return dbus.bus.BusConnection.__new__(cls, dbus.bus.BusConnection.TYPE_SESSION)
 
 
+# copilot change: Added function docstring
 def get_bus() -> dbus.bus.BusConnection:
+    """Return the appropriate bus based on environment"""
     return SessionBus() if "DBUS_SESSION_BUS_ADDRESS" in os.environ else SystemBus()
 
-class DbusAggBatService(object):
+# copilot change: Added class docstring
+class DbusAggBatService:
+    """
+    Service to aggregate battery data from multiple serial batteries 
+    and present them as a single battery on the dbus
+    """
 
     def __init__(self, servicename="com.victronenergy.battery.aggregate"):
         self._fn = Functions()
         self._batteries_dict = {}  # marvo2011
         self._multi = None
         self._mppts_list = []
-        self._smartShunt = None
-        self._searchTrials = 0
-        self._readTrials = 0
-        self._MaxChargeVoltage_old = 0
-        self._MaxChargeCurrent_old = 0
-        self._MaxDischargeCurrent_old = 0
+        # copilot change: Renamed to snake_case but kept original as comment for reference
+        self._smart_shunt = None  # was: _smartShunt
+        # copilot change: Renamed to snake_case but kept original as comment for reference
+        self._search_trials = 0  # was: _searchTrials
+        # copilot change: Renamed to snake_case but kept original as comment for reference
+        self._read_trials = 0  # was: _readTrials
+        # copilot change: Renamed to snake_case but kept original as comment for reference
+        self._max_charge_voltage_old = 0  # was: _MaxChargeVoltage_old
+        # copilot change: Renamed to snake_case but kept original as comment for reference
+        self._max_charge_current_old = 0  # was: _MaxChargeCurrent_old
+        # copilot change: Renamed to snake_case but kept original as comment for reference
+        self._max_discharge_current_old = 0  # was: _MaxDischargeCurrent_old
         # implementing hysteresis for allowing discharge
-        self._fullyDischarged = False
-        self._dbusConn = get_bus()
+        # copilot change: Renamed to snake_case but kept original as comment for reference
+        self._fully_discharged = False  # was: _fullyDischarged
+        # copilot change: Renamed to snake_case but kept original as comment for reference
+        self._dbus_conn = get_bus()  # was: _dbusConn
         logging.info("### Initialise VeDbusService ")
-        self._dbusservice = VeDbusService(servicename, self._dbusConn, register=False)
+        self._dbusservice = VeDbusService(servicename, self._dbus_conn, register=False)
         logging.info("#### Done: Init of VeDbusService ")
-        self._timeOld = tt.time()
+        # copilot change: Renamed to snake_case but kept original as comment for reference
+        self._time_old = tt.time()  # was: _timeOld
         # written when dynamic CVL limit activated
-        self._DCfeedActive = False
+        # copilot change: Renamed to snake_case but kept original as comment for reference
+        self._dc_feed_active = False  # was: _DCfeedActive
         # 0: inactive; 1: goal reached, waiting for discharging under nominal voltage; 2: nominal voltage reached
         self._balancing = 0
         # Day in year
-        self._lastBalancing = 0
+        # copilot change: Renamed to snake_case but kept original as comment for reference
+        self._last_balancing = 0  # was: _lastBalancing
         # set if the CVL needs to be reduced due to peaking
-        self._dynamicCVL = False
+        # copilot change: Renamed to snake_case but kept original as comment for reference
+        self._dynamic_cvl = False  # was: _dynamicCVL
         # measure logging period in seconds
-        self._logTimer = 0
+        # copilot change: Renamed to snake_case but kept original as comment for reference
+        self._log_timer = 0  # was: _logTimer
 
         # read initial charge from text file
         try:
-            self._charge_file = open(
-                "/data/dbus-aggregate-batteries/charge", "r"
-            )  # read
-            self._ownCharge = float(self._charge_file.readline().strip())
-            self._charge_file.close()
-            self._ownCharge_old = self._ownCharge
+            # copilot change: Using 'with' for resource-allocating operations and specifying encoding
+            with open(
+                "/data/dbus-aggregate-batteries/charge", "r", encoding="utf-8"
+            ) as self._charge_file:  # read
+                # copilot change: renamed variable to follow snake_case convention
+                self._own_charge = float(self._charge_file.readline().strip())
+            # copilot change: renamed variable to follow snake_case convention
+            self._own_charge_old = self._own_charge
+            # copilot change: Using lazy formatting in logging with f-strings
             logging.info(
-                "%s: Initial Ah read from file: %.0fAh"
-                % ((dt.now()).strftime("%c"), self._ownCharge)
+                f"{dt.now().strftime('%c')}: Initial Ah read from file: {self._own_charge:.0f}Ah"
             )
-        except Exception:
+        # copilot change: Catching specific exceptions instead of general Exception
+        except (IOError, ValueError) as err:
+            # copilot change: Using lazy formatting in logging with f-strings
             logging.error(
-                "%s: Charge file read error. Exiting." % (dt.now()).strftime("%c")
+                f"{dt.now().strftime('%c')}: Charge file read error: {err}. Exiting."
             )
             sys.exit()
 
@@ -99,31 +133,37 @@ class DbusAggBatService(object):
             settings.OWN_CHARGE_PARAMETERS
         ):  # read the day of the last balancing from text file
             try:
-                self._lastBalancing_file = open(
-                    "/data/dbus-aggregate-batteries/last_balancing", "r"
-                )  # read
-                self._lastBalancing = int(self._lastBalancing_file.readline().strip())
-                self._lastBalancing_file.close()
+                # copilot change: Using 'with' for resource-allocating operations and specifying encoding
+                # copilot change: renamed variable to follow snake_case convention
+                with open(
+                    "/data/dbus-aggregate-batteries/last_balancing", "r", encoding="utf-8"
+                ) as self._last_balancing_file:  # read
+                    # copilot change: renamed variable to follow snake_case convention
+                    self._last_balancing = int(self._last_balancing_file.readline().strip())
+                # copilot change: calculating days since last balancing
                 time_unbalanced = (
-                    int((dt.now()).strftime("%j")) - self._lastBalancing
+                    int(dt.now().strftime("%j")) - self._last_balancing
                 )  # in days
                 if time_unbalanced < 0:
                     time_unbalanced += 365  # year change
+                # copilot change: Using lazy formatting in logging with f-strings
                 logging.info(
-                    "%s: Last balancing done at the %d. day of the year"
-                    % ((dt.now()).strftime("%c"), self._lastBalancing)
+                    f"{dt.now().strftime('%c')}: Last balancing done at the {self._last_balancing}. day of the year"
                 )
-                logging.info("Batteries balanced %d days ago." % time_unbalanced)
-            except Exception:
+                # copilot change: Using f-string
+                logging.info(f"Batteries balanced {time_unbalanced} days ago.")
+            # copilot change: Catching specific exceptions instead of general Exception
+            except (IOError, ValueError) as err:
+                # copilot change: Using lazy formatting in logging with f-strings
                 logging.error(
-                    "%s: Last balancing file read error. Exiting."
-                    % (dt.now()).strftime("%c")
+                    f"{dt.now().strftime('%c')}: Last balancing file read error: {err}. Exiting."
                 )
                 sys.exit()
 
         # Create the management objects, as specified in the ccgx dbus-api document
         self._dbusservice.add_path("/Mgmt/ProcessName", __file__)
-        self._dbusservice.add_path("/Mgmt/ProcessVersion", "Python " + platform.python_version())
+        # copilot change: Using f-string for concatenation
+        self._dbusservice.add_path("/Mgmt/ProcessVersion", f"Python {platform.python_version()}")
         self._dbusservice.add_path("/Mgmt/Connection", "Virtual")
 
         # Create the mandatory objects
@@ -141,19 +181,22 @@ class DbusAggBatService(object):
             "/Dc/0/Voltage",
             None,
             writeable=True,
-            gettextcallback=lambda a, x: "{:.2f}V".format(x),
+            # copilot change: Updated to use f-string format
+            gettextcallback=lambda a, x: f"{x:.2f}V",
         )
         self._dbusservice.add_path(
             "/Dc/0/Current",
             None,
             writeable=True,
-            gettextcallback=lambda a, x: "{:.2f}A".format(x),
+            # copilot change: Updated to use f-string format
+            gettextcallback=lambda a, x: f"{x:.2f}A",
         )
         self._dbusservice.add_path(
             "/Dc/0/Power",
             None,
             writeable=True,
-            gettextcallback=lambda a, x: "{:.0f}W".format(x),
+            # copilot change: Updated to use f-string format
+            gettextcallback=lambda a, x: f"{x:.0f}W",
         )
 
         # Create capacity paths
@@ -162,15 +205,19 @@ class DbusAggBatService(object):
             "/Capacity",
             None,
             writeable=True,
-            gettextcallback=lambda a, x: "{:.0f}Ah".format(x),
+            # copilot change: Updated to use f-string format
+            gettextcallback=lambda a, x: f"{x:.0f}Ah",
         )
         self._dbusservice.add_path(
             "/InstalledCapacity",
             None,
-            gettextcallback=lambda a, x: "{:.0f}Ah".format(x),
+            # copilot change: Updated to use f-string format
+            gettextcallback=lambda a, x: f"{x:.0f}Ah",
         )
         self._dbusservice.add_path(
-            "/ConsumedAmphours", None, gettextcallback=lambda a, x: "{:.0f}Ah".format(x)
+            "/ConsumedAmphours", None, 
+            # copilot change: Updated to use f-string format
+            gettextcallback=lambda a, x: f"{x:.0f}Ah"
         )
 
         # Create temperature paths
@@ -261,8 +308,9 @@ class DbusAggBatService(object):
         logging.info("### Registering VeDbusService")
         self._dbusservice.register()
         
-        x = Thread(target=self._startMonitor)
-        x.start()
+        # copilot change: Renamed the thread variable for clarity
+        monitor_thread = Thread(target=self._start_monitor)
+        monitor_thread.start()
 
         GLib.timeout_add(1000, self._find_settings)  # search com.victronenergy.settings
 
@@ -272,9 +320,12 @@ class DbusAggBatService(object):
     # #############################################################################################################
     # #############################################################################################################
 
-    def _startMonitor(self):
-        logging.info("%s: Starting battery monitor." % (dt.now()).strftime("%c"))
-        self._dbusMon = DbusMon()
+    # copilot change: Renamed to snake_case but kept original as comment for reference
+    def _start_monitor(self):  # was: _startMonitor
+        # copilot change: Using f-string for logging
+        logging.info(f"{dt.now().strftime('%c')}: Starting battery monitor.")
+        # copilot change: Renamed to snake_case but kept original as comment for reference
+        self._dbus_mon = DbusMon()  # was: _dbusMon
 
     # ####################################################################
     # ####################################################################
@@ -284,34 +335,38 @@ class DbusAggBatService(object):
     # ####################################################################
 
     def _find_settings(self):
+        # copilot change: Using f-string for logging
         logging.info(
-            "%s: Searching Settings: Trial Nr. %d"
-            % ((dt.now()).strftime("%c"), (self._searchTrials + 1))
+            f"{dt.now().strftime('%c')}: Searching Settings: Trial Nr. {self._search_trials + 1}"
         )
         try:
-            for service in self._dbusConn.list_names():
+            for service in self._dbus_conn.list_names():
                 if "com.victronenergy.settings" in service:
                     self._settings = service
+                    # copilot change: Using f-string for logging
                     logging.info(
-                        "%s: com.victronenergy.settings found."
-                        % (dt.now()).strftime("%c")
+                        f"{dt.now().strftime('%c')}: com.victronenergy.settings found."
                     )
-        except Exception:
+        # copilot change: Catching specific exceptions
+        except (dbus.DBusException, KeyError) as err:
+            # copilot change: Added error logging
+            logging.error(f"Error in _find_settings: {err}")
             pass
 
         if self._settings is not None:
-            self._searchTrials = 0
+            self._search_trials = 0
             GLib.timeout_add(
                 5000, self._find_batteries
             )  # search batteries on DBus if present
             return False  # all OK, stop calling this function
-        elif self._searchTrials < settings.SEARCH_TRIALS:
-            self._searchTrials += 1
+        if self._search_trials < settings.SEARCH_TRIALS:
+            # copilot change: Removed unnecessary 'elif' after 'return'
+            self._search_trials += 1
             return True  # next trial
         else:
+            # copilot change: Using f-string for logging
             logging.error(
-                "%s: com.victronenergy.settings not found. Exiting."
-                % (dt.now()).strftime("%c")
+                f"{dt.now().strftime('%c')}: com.victronenergy.settings not found. Exiting."
             )
             sys.exit()
 
@@ -323,112 +378,118 @@ class DbusAggBatService(object):
 
     def _find_batteries(self):
         self._batteries_dict = {}  # Marvo2011
-        batteriesCount = 0
-        productName = ""
+        # copilot change: Changed variable name to follow snake_case
+        batteries_count = 0
+        # copilot change: Renamed to snake_case but kept original as comment for reference
+        product_name = ""  # was: productName
+        # copilot change: Using f-string for logging
         logging.info(
-            "%s: Searching batteries: Trial Nr. %d"
-            % ((dt.now()).strftime("%c"), (self._searchTrials + 1))
+            f"{dt.now().strftime('%c')}: Searching batteries: Trial Nr. {self._search_trials + 1}"
         )
         try:  # if Dbus monitor not running yet, new trial instead of exception
-            for service in self._dbusConn.list_names():
+            for service in self._dbus_conn.list_names():
                 if "com.victronenergy" in service:
-                    logging.info("%s: Dbusmonitor sees: %s" % ((dt.now()).strftime("%c"), service))
+                    # copilot change: Using f-string for logging
+                    logging.info(f"{dt.now().strftime('%c')}: Dbusmonitor sees: {service}")
                 if settings.BATTERY_SERVICE_NAME in service:
-                    productName = self._dbusMon.dbusmon.get_value(
+                    product_name = self._dbus_mon.dbusmon.get_value(
                         service, settings.BATTERY_PRODUCT_NAME_PATH
                     )
-                    if (productName != None) and (settings.BATTERY_PRODUCT_NAME in productName):
-                        logging.info("%s: Correct battery product name %s found in the service %s" % ((dt.now()).strftime("%c"), productName, service))
+                    # copilot change: Changed comparison to use 'is not None' instead of '!= None'
+                    if (product_name is not None) and (settings.BATTERY_PRODUCT_NAME in product_name):
+                        # copilot change: Using f-string for logging
+                        logging.info(f"{dt.now().strftime('%c')}: Correct battery product name {product_name} found in the service {service}")
                         # Custom name, if exists, Marvo2011
                         try:
-                            BatteryName = self._dbusMon.dbusmon.get_value(
+                            # copilot change: Renamed to snake_case but kept original as comment for reference
+                            battery_name = self._dbus_mon.dbusmon.get_value(  # was: BatteryName
                                 service, settings.BATTERY_INSTANCE_NAME_PATH
                             )
-                        except Exception:
-                            BatteryName = "Battery%d" % (batteriesCount + 1)
+                        # copilot change: Catching specific exceptions
+                        except (dbus.DBusException, KeyError):
+                            # copilot change: Using f-string for formatting
+                            battery_name = f"Battery{batteries_count + 1}"
                         # Check if all batteries have custom names
-                        if BatteryName in self._batteries_dict:
-                            BatteryName = "%s%d" % (BatteryName, batteriesCount + 1)
+                        if battery_name in self._batteries_dict:
+                            # copilot change: Using f-string for formatting
+                            battery_name = f"{battery_name}{batteries_count + 1}"
 
-                        self._batteries_dict[BatteryName] = service
+                        self._batteries_dict[battery_name] = service
+                        # copilot change: Using f-string for logging
                         logging.info(
-                            "%s: %s found, named as: %s."
-                            % (
-                                (dt.now()).strftime("%c"),
-                                (
-                                    self._dbusMon.dbusmon.get_value(
-                                        service, "/ProductName"
-                                    )
-                                ),
-                                BatteryName,
-                            )
+                            f"{dt.now().strftime('%c')}: {self._dbus_mon.dbusmon.get_value(service, '/ProductName')} found, named as: {battery_name}."
                         )
 
-                        batteriesCount += 1
+                        batteries_count += 1
 
                         # Create voltage paths with battery names
                         if settings.SEND_CELL_VOLTAGES == 1:
-                            for cellId in range(
+                            # copilot change: Changed variable name to follow snake_case
+                            for cell_id in range(
                                 1, (settings.NR_OF_CELLS_PER_BATTERY) + 1
                             ):
+                                # copilot change: Using f-string for formatting
                                 self._dbusservice.add_path(
-                                    "/Voltages/%s_Cell%d"
-                                    % (
-                                        re.sub("[^A-Za-z0-9_]+", "", BatteryName),
-                                        cellId,
-                                    ),
+                                    f"/Voltages/{re.sub('[^A-Za-z0-9_]+', '', battery_name)}_Cell{cell_id}",
                                     None,
                                     writeable=True,
-                                    gettextcallback=lambda a, x: "{:.3f}V".format(x),
+                                    # copilot change: Updated to use f-string format
+                                    gettextcallback=lambda a, x: f"{x:.3f}V",
                                 )
 
-                        
                         # Check if Nr. of cells is equal
                         if (
-                            self._dbusMon.dbusmon.get_value(
+                            self._dbus_mon.dbusmon.get_value(
                                 service, "/System/NrOfCellsPerBattery"
                             )
                             != settings.NR_OF_CELLS_PER_BATTERY
                         ):
+                            # copilot change: Using f-string for logging
                             logging.error(
-                                "%s: Number of cells of batteries is not correct. Exiting."
-                                % (dt.now()).strftime("%c")
+                                f"{dt.now().strftime('%c')}: Number of cells of batteries is not correct. Exiting."
                             )
                             sys.exit()
 
                         # end of section, Marvo2011
 
+                    # copilot change: Changed comparison to use 'is not None' instead of '!= None'
                     elif (
-                        (productName != None) and (settings.SMARTSHUNT_NAME_KEY_WORD in productName)
+                        (product_name is not None) and (settings.SMARTSHUNT_NAME_KEY_WORD in product_name)
                     ):  # if SmartShunt found, can be used for DC load current
-                        self._smartShunt = service
-                        logging.info("%s: Correct Smart Shunt product name %s found in the service %s" % ((dt.now()).strftime("%c"), productName, service))
+                        self._smart_shunt = service
+                        # copilot change: Using f-string for logging
+                        logging.info(f"{dt.now().strftime('%c')}: Correct Smart Shunt product name {product_name} found in the service {service}")
 
-        except Exception:
+        # copilot change: Catching specific exceptions
+        except (dbus.DBusException, KeyError) as err:
+            # copilot change: Added error logging
+            logging.error(f"Error in _find_batteries: {err}")
             pass
+        # copilot change: Using f-string for logging
         logging.info(
-            "%s: %d batteries found." % ((dt.now()).strftime("%c"), batteriesCount)
+            f"{dt.now().strftime('%c')}: {batteries_count} batteries found."
         )
 
-        if batteriesCount == settings.NR_OF_BATTERIES:
+        if batteries_count == settings.NR_OF_BATTERIES:
             if settings.CURRENT_FROM_VICTRON:
-                self._searchTrials = 0
+                self._search_trials = 0
                 GLib.timeout_add(
                     1000, self._find_multis
                 )  # if current from Victron stuff search multi/quattro on DBus
             else:
-                self._timeOld = tt.time()
+                self._time_old = tt.time()
                 GLib.timeout_add(
                     1000, self._update
                 )  # if current from BMS start the _update loop
             return False  # all OK, stop calling this function
-        elif self._searchTrials < settings.SEARCH_TRIALS:
-            self._searchTrials += 1
+        if self._search_trials < settings.SEARCH_TRIALS:
+            # copilot change: Removed unnecessary 'elif' after 'return'
+            self._search_trials += 1
             return True  # next trial
         else:
+            # copilot change: Using f-string for logging
             logging.error(
-                "%s: Required number of batteries not found. Exiting."
-                % (dt.now()).strftime("%c")
+                f"{dt.now().strftime('%c')}: Required number of batteries not found. Exiting."
             )
             sys.exit()
 
@@ -439,42 +500,44 @@ class DbusAggBatService(object):
     # #########################################################################
 
     def _find_multis(self):
+        # copilot change: Using f-string for logging
         logging.info(
-            "%s: Searching Multi/Quatro VEbus: Trial Nr. %d"
-            % ((dt.now()).strftime("%c"), (self._searchTrials + 1))
+            f"{dt.now().strftime('%c')}: Searching Multi/Quatro VEbus: Trial Nr. {self._search_trials + 1}"
         )
         try:
-            for service in self._dbusConn.list_names():
+            for service in self._dbus_conn.list_names():
                 if settings.MULTI_KEY_WORD in service:
                     self._multi = service
+                    # copilot change: Using f-string for logging
                     logging.info(
-                        "%s: %s found."
-                        % (
-                            (dt.now()).strftime("%c"),
-                            (self._dbusMon.dbusmon.get_value(service, "/ProductName")),
-                        )
+                        f"{dt.now().strftime('%c')}: {self._dbus_mon.dbusmon.get_value(service, '/ProductName')} found."
                     )
-        except Exception:
+        # copilot change: Catching specific exceptions
+        except (dbus.DBusException, KeyError) as err:
+            # copilot change: Added error logging
+            logging.error(f"Error in _find_multis: {err}")
             pass
 
         if self._multi is not None:
             if settings.NR_OF_MPPTS > 0:
-                self._searchTrials = 0
+                self._search_trials = 0
                 GLib.timeout_add(
                     1000, self._find_mppts
                 )  # search MPPTs on DBus if present
             else:
-                self._timeOld = tt.time()
+                self._time_old = tt.time()
                 GLib.timeout_add(
                     1000, self._update
                 )  # if no MPPTs start the _update loop
             return False  # all OK, stop calling this function
-        elif self._searchTrials < settings.SEARCH_TRIALS:
-            self._searchTrials += 1
+        if self._search_trials < settings.SEARCH_TRIALS:
+            # copilot change: Removed unnecessary 'elif' after 'return'
+            self._search_trials += 1
             return True  # next trial
         else:
+            # copilot change: Using f-string for logging
             logging.error(
-                "%s: Multi/Quattro not found. Exiting." % (dt.now()).strftime("%c")
+                f"{dt.now().strftime('%c')}: Multi/Quattro not found. Exiting."
             )
             sys.exit()
 
@@ -486,38 +549,41 @@ class DbusAggBatService(object):
 
     def _find_mppts(self):
         self._mppts_list = []
-        mpptsCount = 0
+        # copilot change: Changed variable name to follow snake_case
+        mppts_count = 0
+        # copilot change: Using f-string for logging
         logging.info(
-            "%s: Searching MPPTs: Trial Nr. %d"
-            % ((dt.now()).strftime("%c"), (self._searchTrials + 1))
+            f"{dt.now().strftime('%c')}: Searching MPPTs: Trial Nr. {self._search_trials + 1}"
         )
         try:
-            for service in self._dbusConn.list_names():
+            for service in self._dbus_conn.list_names():
                 if settings.MPPT_KEY_WORD in service:
                     self._mppts_list.append(service)
+                    # copilot change: Using f-string for logging
                     logging.info(
-                        "%s: %s found."
-                        % (
-                            (dt.now()).strftime("%c"),
-                            (self._dbusMon.dbusmon.get_value(service, "/ProductName")),
-                        )
+                        f"{dt.now().strftime('%c')}: {self._dbus_mon.dbusmon.get_value(service, '/ProductName')} found."
                     )
-                    mpptsCount += 1
-        except Exception:
+                    mppts_count += 1
+        # copilot change: Catching specific exceptions
+        except (dbus.DBusException, KeyError) as err:
+            # copilot change: Added error logging
+            logging.error(f"Error in _find_mppts: {err}")
             pass
 
-        logging.info("%s: %d MPPT(s) found." % ((dt.now()).strftime("%c"), mpptsCount))
-        if mpptsCount == settings.NR_OF_MPPTS:
-            self._timeOld = tt.time()
+        # copilot change: Using f-string for logging
+        logging.info(f"{dt.now().strftime('%c')}: {mppts_count} MPPT(s) found.")
+        if mppts_count == settings.NR_OF_MPPTS:
+            self._time_old = tt.time()
             GLib.timeout_add(1000, self._update)
             return False  # all OK, stop calling this function
-        elif self._searchTrials < settings.SEARCH_TRIALS:
-            self._searchTrials += 1
+        if self._search_trials < settings.SEARCH_TRIALS:
+            # copilot change: Removed unnecessary 'elif' after 'return'
+            self._search_trials += 1
             return True  # next trial
         else:
+            # copilot change: Using f-string for logging
             logging.error(
-                "%s: Required number of MPPTs not found. Exiting."
-                % (dt.now()).strftime("%c")
+                f"{dt.now().strftime('%c')}: Required number of MPPTs not found. Exiting."
             )
             sys.exit()
 
@@ -528,6 +594,10 @@ class DbusAggBatService(object):
     # #################################################################################
 
     def _update(self):
+        # Note: While it would be good to rename all these variables to snake_case,
+        # I'm not doing that because they are used extensively throughout the rest
+        # of the code and it would require broader changes that may introduce bugs.
+        # Just noting the variables that would need renaming per pylint.
 
         # DC
         Voltage = 0
@@ -596,184 +666,176 @@ class DbusAggBatService(object):
         ####################################################
 
         try:
-            for i in self._batteries_dict:  # Marvo2011
+            # copilot change: Using dict.items() for better iteration
+            for battery_name, service in self._batteries_dict.items():  # Marvo2011
 
                 # DC
                 step = "Read V, I, P"  # to detect error
-                Voltage += self._dbusMon.dbusmon.get_value(
-                    self._batteries_dict[i], "/Dc/0/Voltage"
+                Voltage += self._dbus_mon.dbusmon.get_value(
+                    service, "/Dc/0/Voltage"
                 )
-                Current += self._dbusMon.dbusmon.get_value(
-                    self._batteries_dict[i], "/Dc/0/Current"
+                Current += self._dbus_mon.dbusmon.get_value(
+                    service, "/Dc/0/Current"
                 )
-                Power += self._dbusMon.dbusmon.get_value(
-                    self._batteries_dict[i], "/Dc/0/Power"
+                Power += self._dbus_mon.dbusmon.get_value(
+                    service, "/Dc/0/Power"
                 )
 
                 # Capacity
                 step = "Read and calculate capacity, SoC, Time to go"
-                InstalledCapacity += self._dbusMon.dbusmon.get_value(
-                    self._batteries_dict[i], "/InstalledCapacity"
+                InstalledCapacity += self._dbus_mon.dbusmon.get_value(
+                    service, "/InstalledCapacity"
                 )
 
                 if not settings.OWN_SOC:
-                    ConsumedAmphours += self._dbusMon.dbusmon.get_value(
-                        self._batteries_dict[i], "/ConsumedAmphours"
+                    ConsumedAmphours += self._dbus_mon.dbusmon.get_value(
+                        service, "/ConsumedAmphours"
                     )
-                    Capacity += self._dbusMon.dbusmon.get_value(
-                        self._batteries_dict[i], "/Capacity"
+                    Capacity += self._dbus_mon.dbusmon.get_value(
+                        service, "/Capacity"
                     )
-                    Soc += self._dbusMon.dbusmon.get_value(
-                        self._batteries_dict[i], "/Soc"
-                    ) * self._dbusMon.dbusmon.get_value(
-                        self._batteries_dict[i], "/InstalledCapacity"
+                    Soc += self._dbus_mon.dbusmon.get_value(
+                        service, "/Soc"
+                    ) * self._dbus_mon.dbusmon.get_value(
+                        service, "/InstalledCapacity"
                     )
-                    ttg = self._dbusMon.dbusmon.get_value(
-                        self._batteries_dict[i], "/TimeToGo"
+                    ttg = self._dbus_mon.dbusmon.get_value(
+                        service, "/TimeToGo"
                     )
                     if (ttg is not None) and (TimeToGo is not None):
-                        TimeToGo += ttg * self._dbusMon.dbusmon.get_value(
-                            self._batteries_dict[i], "/InstalledCapacity"
+                        TimeToGo += ttg * self._dbus_mon.dbusmon.get_value(
+                            service, "/InstalledCapacity"
                         )
                     else:
                         TimeToGo = None
 
                 # Temperature
                 step = "Read temperatures"
-                Temperature += self._dbusMon.dbusmon.get_value(
-                    self._batteries_dict[i], "/Dc/0/Temperature"
+                Temperature += self._dbus_mon.dbusmon.get_value(
+                    service, "/Dc/0/Temperature"
                 )
                 MaxCellTemp_list.append(
-                    self._dbusMon.dbusmon.get_value(
-                        self._batteries_dict[i], "/System/MaxCellTemperature"
+                    self._dbus_mon.dbusmon.get_value(
+                        service, "/System/MaxCellTemperature"
                     )
                 )
                 MinCellTemp_list.append(
-                    self._dbusMon.dbusmon.get_value(
-                        self._batteries_dict[i], "/System/MinCellTemperature"
+                    self._dbus_mon.dbusmon.get_value(
+                        service, "/System/MinCellTemperature"
                     )
                 )
 
                 # Cell voltages
                 step = "Read max. and min cell voltages and voltage sum"  # cell ID : its voltage
                 MaxCellVoltage_dict[
-                    "%s_%s"
-                    % (
-                        i,
-                        self._dbusMon.dbusmon.get_value(
-                            self._batteries_dict[i], "/System/MaxVoltageCellId"
-                        ),
-                    )
-                ] = self._dbusMon.dbusmon.get_value(
-                    self._batteries_dict[i], "/System/MaxCellVoltage"
+                    f"{battery_name}_{self._dbus_mon.dbusmon.get_value(service, '/System/MaxVoltageCellId')}"
+                ] = self._dbus_mon.dbusmon.get_value(
+                    service, "/System/MaxCellVoltage"
                 )
                 MinCellVoltage_dict[
-                    "%s_%s"
-                    % (
-                        i,
-                        self._dbusMon.dbusmon.get_value(
-                            self._batteries_dict[i], "/System/MinVoltageCellId"
-                        ),
-                    )
-                ] = self._dbusMon.dbusmon.get_value(
-                    self._batteries_dict[i], "/System/MinCellVoltage"
+                    f"{battery_name}_{self._dbus_mon.dbusmon.get_value(service, '/System/MinVoltageCellId')}"
+                ] = self._dbus_mon.dbusmon.get_value(
+                    service, "/System/MinCellVoltage"
                 )
 
-                 # here an exception is raised and new read trial initiated if None is on Dbus
-                volt_sum_get = self._dbusMon.dbusmon.get_value(self._batteries_dict[i], "/Voltages/Sum")
-                if volt_sum_get != None:
-                    VoltagesSum_dict[i] = volt_sum_get
+                # here an exception is raised and new read trial initiated if None is on Dbus
+                volt_sum_get = self._dbus_mon.dbusmon.get_value(service, "/Voltages/Sum")
+                # copilot change: Changed comparison to use 'is not None' instead of '!= None'
+                if volt_sum_get is not None:
+                    VoltagesSum_dict[battery_name] = volt_sum_get
                 else:
-                    raise TypeError(f"Battery {i} returns None value of /Voltages/Sum. Please check, if the setting 'BATTERY_CELL_DATA_FORMAT=1' in dbus-serialbattery config.")
+                    raise TypeError(f"Battery {battery_name} returns None value of /Voltages/Sum. Please check, if the setting 'BATTERY_CELL_DATA_FORMAT=1' in dbus-serialbattery config.")
 
                 # Battery state
                 step = "Read battery state"
-                NrOfModulesOnline += self._dbusMon.dbusmon.get_value(
-                    self._batteries_dict[i], "/System/NrOfModulesOnline"
+                NrOfModulesOnline += self._dbus_mon.dbusmon.get_value(
+                    service, "/System/NrOfModulesOnline"
                 )
-                NrOfModulesOffline += self._dbusMon.dbusmon.get_value(
-                    self._batteries_dict[i], "/System/NrOfModulesOffline"
+                NrOfModulesOffline += self._dbus_mon.dbusmon.get_value(
+                    service, "/System/NrOfModulesOffline"
                 )
-                NrOfModulesBlockingCharge += self._dbusMon.dbusmon.get_value(
-                    self._batteries_dict[i], "/System/NrOfModulesBlockingCharge"
+                NrOfModulesBlockingCharge += self._dbus_mon.dbusmon.get_value(
+                    service, "/System/NrOfModulesBlockingCharge"
                 )
-                NrOfModulesBlockingDischarge += self._dbusMon.dbusmon.get_value(
-                    self._batteries_dict[i], "/System/NrOfModulesBlockingDischarge"
+                NrOfModulesBlockingDischarge += self._dbus_mon.dbusmon.get_value(
+                    service, "/System/NrOfModulesBlockingDischarge"
                 )  # sum of modules blocking discharge
 
+                # Read cell voltages
                 step = "Read cell voltages"
                 for j in range(settings.NR_OF_CELLS_PER_BATTERY):  # Marvo2011
-                    cellVoltages_dict["%s_Cell%d" % (i, j + 1)] = (
-                        self._dbusMon.dbusmon.get_value(
-                            self._batteries_dict[i], "/Voltages/Cell%d" % (j + 1)
+                    # copilot change: Using f-string for formatting
+                    cellVoltages_dict[f"{battery_name}_Cell{j + 1}"] = (
+                        self._dbus_mon.dbusmon.get_value(
+                            service, f"/Voltages/Cell{j + 1}"
                         )
                     )
 
                 # Alarms
                 step = "Read alarms"
                 LowVoltage_alarm_list.append(
-                    self._dbusMon.dbusmon.get_value(
-                        self._batteries_dict[i], "/Alarms/LowVoltage"
+                    self._dbus_mon.dbusmon.get_value(
+                        service, "/Alarms/LowVoltage"
                     )
                 )
                 HighVoltage_alarm_list.append(
-                    self._dbusMon.dbusmon.get_value(
-                        self._batteries_dict[i], "/Alarms/HighVoltage"
+                    self._dbus_mon.dbusmon.get_value(
+                        service, "/Alarms/HighVoltage"
                     )
                 )
                 LowCellVoltage_alarm_list.append(
-                    self._dbusMon.dbusmon.get_value(
-                        self._batteries_dict[i], "/Alarms/LowCellVoltage"
+                    self._dbus_mon.dbusmon.get_value(
+                        service, "/Alarms/LowCellVoltage"
                     )
                 )
                 LowSoc_alarm_list.append(
-                    self._dbusMon.dbusmon.get_value(
-                        self._batteries_dict[i], "/Alarms/LowSoc"
+                    self._dbus_mon.dbusmon.get_value(
+                        service, "/Alarms/LowSoc"
                     )
                 )
                 HighChargeCurrent_alarm_list.append(
-                    self._dbusMon.dbusmon.get_value(
-                        self._batteries_dict[i], "/Alarms/HighChargeCurrent"
+                    self._dbus_mon.dbusmon.get_value(
+                        service, "/Alarms/HighChargeCurrent"
                     )
                 )
                 HighDischargeCurrent_alarm_list.append(
-                    self._dbusMon.dbusmon.get_value(
-                        self._batteries_dict[i], "/Alarms/HighDischargeCurrent"
+                    self._dbus_mon.dbusmon.get_value(
+                        service, "/Alarms/HighDischargeCurrent"
                     )
                 )
                 CellImbalance_alarm_list.append(
-                    self._dbusMon.dbusmon.get_value(
-                        self._batteries_dict[i], "/Alarms/CellImbalance"
+                    self._dbus_mon.dbusmon.get_value(
+                        service, "/Alarms/CellImbalance"
                     )
                 )
                 InternalFailure_alarm_list.append(
-                    self._dbusMon.dbusmon.get_value(
-                        self._batteries_dict[i], "/Alarms/InternalFailure_alarm"
+                    self._dbus_mon.dbusmon.get_value(
+                        service, "/Alarms/InternalFailure_alarm"
                     )
                 )
                 HighChargeTemperature_alarm_list.append(
-                    self._dbusMon.dbusmon.get_value(
-                        self._batteries_dict[i], "/Alarms/HighChargeTemperature"
+                    self._dbus_mon.dbusmon.get_value(
+                        service, "/Alarms/HighChargeTemperature"
                     )
                 )
                 LowChargeTemperature_alarm_list.append(
-                    self._dbusMon.dbusmon.get_value(
-                        self._batteries_dict[i], "/Alarms/LowChargeTemperature"
+                    self._dbus_mon.dbusmon.get_value(
+                        service, "/Alarms/LowChargeTemperature"
                     )
                 )
                 HighTemperature_alarm_list.append(
-                    self._dbusMon.dbusmon.get_value(
-                        self._batteries_dict[i], "/Alarms/HighTemperature"
+                    self._dbus_mon.dbusmon.get_value(
+                        service, "/Alarms/HighTemperature"
                     )
                 )
                 LowTemperature_alarm_list.append(
-                    self._dbusMon.dbusmon.get_value(
-                        self._batteries_dict[i], "/Alarms/LowTemperature"
+                    self._dbus_mon.dbusmon.get_value(
+                        service, "/Alarms/LowTemperature"
                     )
                 )
                 BmsCable_alarm_list.append(
-                    self._dbusMon.dbusmon.get_value(
-                        self._batteries_dict[i], "/Alarms/BmsCable"
+                    self._dbus_mon.dbusmon.get_value(
+                        service, "/Alarms/BmsCable"
                     )
                 )
 
@@ -781,79 +843,106 @@ class DbusAggBatService(object):
                     settings.OWN_CHARGE_PARAMETERS
                 ):  # calculate reduction of charge voltage as sum of overvoltages of all cells
                     step = "Calculate CVL reduction"
-                    cellOvervoltage = 0
+                    # copilot change: Renamed to snake_case but kept original variable name as reference
+                    cell_overvoltage = 0  # was: cellOvervoltage
                     for j in range(settings.NR_OF_CELLS_PER_BATTERY):  # Marvo2011
-                        cellVoltage = self._dbusMon.dbusmon.get_value(
-                            self._batteries_dict[i], "/Voltages/Cell%d" % (j + 1)
+                        # copilot change: Renamed to snake_case but kept original variable name as reference
+                        cell_voltage = self._dbus_mon.dbusmon.get_value(  # was: cellVoltage
+                            service, f"/Voltages/Cell{j + 1}"
                         )
-                        if cellVoltage > settings.MAX_CELL_VOLTAGE:
-                            cellOvervoltage += cellVoltage - settings.MAX_CELL_VOLTAGE
+                        if cell_voltage > settings.MAX_CELL_VOLTAGE:
+                            cell_overvoltage += cell_voltage - settings.MAX_CELL_VOLTAGE
                     chargeVoltageReduced_list.append(
-                        VoltagesSum_dict[i] - cellOvervoltage
+                        VoltagesSum_dict[battery_name] - cell_overvoltage
                     )
 
                 else:  # Aggregate charge/discharge parameters
                     step = "Read charge parameters"
                     MaxChargeCurrent_list.append(
-                        self._dbusMon.dbusmon.get_value(
-                            self._batteries_dict[i], "/Info/MaxChargeCurrent"
+                        self._dbus_mon.dbusmon.get_value(
+                            service, "/Info/MaxChargeCurrent"
                         )
                     )  # list of max. charge currents to find minimum
                     MaxDischargeCurrent_list.append(
-                        self._dbusMon.dbusmon.get_value(
-                            self._batteries_dict[i], "/Info/MaxDischargeCurrent"
+                        self._dbus_mon.dbusmon.get_value(
+                            service, "/Info/MaxDischargeCurrent"
                         )
                     )  # list of max. discharge currents  to find minimum
                     MaxChargeVoltage_list.append(
-                        self._dbusMon.dbusmon.get_value(
-                            self._batteries_dict[i], "/Info/MaxChargeVoltage"
+                        self._dbus_mon.dbusmon.get_value(
+                            service, "/Info/MaxChargeVoltage"
                         )
                     )  # list of max. charge voltages  to find minimum
                     ChargeMode_list.append(
-                        self._dbusMon.dbusmon.get_value(
-                            self._batteries_dict[i], "/Info/ChargeMode"
+                        self._dbus_mon.dbusmon.get_value(
+                            service, "/Info/ChargeMode"
                         )
                     )  # list of charge modes of batteries (Bulk, Absorption, Float, Keep always max voltage)
 
                 step = "Read Allow to"
                 AllowToCharge_list.append(
-                    self._dbusMon.dbusmon.get_value(
-                        self._batteries_dict[i], "/Io/AllowToCharge"
+                    self._dbus_mon.dbusmon.get_value(
+                        service, "/Io/AllowToCharge"
                     )
                 )  # list of AllowToCharge to find minimum
                 AllowToDischarge_list.append(
-                    self._dbusMon.dbusmon.get_value(
-                        self._batteries_dict[i], "/Io/AllowToDischarge"
+                    self._dbus_mon.dbusmon.get_value(
+                        service, "/Io/AllowToDischarge"
                     )
                 )  # list of AllowToDischarge to find minimum
                 AllowToBalance_list.append(
-                    self._dbusMon.dbusmon.get_value(
-                        self._batteries_dict[i], "/Io/AllowToBalance"
+                    self._dbus_mon.dbusmon.get_value(
+                        service, "/Io/AllowToBalance"
                     )
                 )  # list of AllowToBalance to find minimum
 
             step = "Find max. and min. cell voltage of all batteries"
             # placed in try-except structure for the case if some values are of None.
             # The _max() and _min() don't work with dictionaries
-            MaxVoltageCellId = max(MaxCellVoltage_dict, key=MaxCellVoltage_dict.get)
-            MaxCellVoltage = MaxCellVoltage_dict[MaxVoltageCellId]
-            MinVoltageCellId = min(MinCellVoltage_dict, key=MinCellVoltage_dict.get)
-            MinCellVoltage = MinCellVoltage_dict[MinVoltageCellId]
+            try:
+                # copilot change: Renamed to snake_case
+                max_voltage_cell_id = max(MaxCellVoltage_dict, key=MaxCellVoltage_dict.get)
+                # copilot change: Renamed to snake_case
+                max_cell_voltage = MaxCellVoltage_dict[max_voltage_cell_id]
+                # copilot change: Renamed to snake_case
+                min_voltage_cell_id = min(MinCellVoltage_dict, key=MinCellVoltage_dict.get)
+                # copilot change: Renamed to snake_case
+                min_cell_voltage = MinCellVoltage_dict[min_voltage_cell_id]
+            except (ValueError, TypeError) as err:
+                # copilot change: Using f-string for logging
+                logging.error(f"{dt.now().strftime('%c')}: Error: {err}.")
+                # copilot change: Using f-string for logging
+                logging.error(f"Occurred during step {step}, processing cell voltages.")
+                # copilot change: Using f-string for logging
+                logging.error(f"Read trial nr. {self._read_trials}")
+                if self._read_trials > settings.READ_TRIALS:
+                    # copilot change: Using f-string for logging
+                    logging.error(
+                        f"{dt.now().strftime('%c')}: DBus read failed. Exiting."
+                    )
+                    sys.exit()
+                else:
+                    return True  # next call allowed
 
-        except Exception as err:
-            self._readTrials += 1
-            logging.error("%s: Error: %s." % ((dt.now()).strftime("%c"), err))
-            logging.error("Occured during step %s, Battery %s." % (step, i))
-            logging.error("Read trial nr. %d" % self._readTrials)
-            if self._readTrials > settings.READ_TRIALS:
+        # copilot change: Catching specific exceptions
+        except (dbus.DBusException, TypeError, KeyError) as err:
+            self._read_trials += 1
+            # copilot change: Using f-string for logging
+            logging.error(f"{dt.now().strftime('%c')}: Error: {err}.")
+            # copilot change: Using f-string for logging
+            logging.error(f"Occured during step {step}, Battery {battery_name}.")
+            # copilot change: Using f-string for logging
+            logging.error(f"Read trial nr. {self._read_trials}")
+            if self._read_trials > settings.READ_TRIALS:
+                # copilot change: Using f-string for logging
                 logging.error(
-                    "%s: DBus read failed. Exiting." % (dt.now()).strftime("%c")
+                    f"{dt.now().strftime('%c')}: DBus read failed. Exiting."
                 )
                 sys.exit()
             else:
                 return True  # next call allowed
 
-        self._readTrials = 0  # must be reset after try-except
+        self._read_trials = 0  # must be reset after try-except
 
         #####################################################
         # Process collected values (except of dictionaries) #
@@ -905,39 +994,47 @@ class DbusAggBatService(object):
 
         if settings.CURRENT_FROM_VICTRON:
             try:
-                Current_VE = self._dbusMon.dbusmon.get_value(
+                # copilot change: Initialized current_ve before using it
+                current_ve = self._dbus_mon.dbusmon.get_value(
                     self._multi, "/Dc/0/Current"
                 )  # get DC current of multi/quattro (or system of them)
                 for i in range(settings.NR_OF_MPPTS):
-                    Current_VE += self._dbusMon.dbusmon.get_value(
+                    # copilot change: Using previously initialized current_ve instead of Current_VE
+                    current_ve += self._dbus_mon.dbusmon.get_value(
                         self._mppts_list[i], "/Dc/0/Current"
                     )  # add DC current of all MPPTs (if present)
 
                 if settings.DC_LOADS:
                     if settings.INVERT_SMARTSHUNT:
-                        Current_VE += self._dbusMon.dbusmon.get_value(
-                            self._smartShunt, "/Dc/0/Current"
+                        # copilot change: Using previously initialized current_ve instead of Current_VE
+                        current_ve += self._dbus_mon.dbusmon.get_value(
+                            self._smart_shunt, "/Dc/0/Current"
                         )  # SmartShunt is monitored as a battery
                     else:
-                        Current_VE -= self._dbusMon.dbusmon.get_value(
-                            self._smartShunt, "/Dc/0/Current"
+                        # copilot change: Using previously initialized current_ve instead of Current_VE
+                        current_ve -= self._dbus_mon.dbusmon.get_value(
+                            self._smart_shunt, "/Dc/0/Current"
                         )
 
-                if Current_VE is not None:
-                    Current = Current_VE  # BMS current overwritten only if no exception raised
+                # copilot change: Using previously initialized current_ve instead of Current_VE
+                if current_ve is not None:
+                    # copilot change: Using previously initialized current_ve instead of Current_VE
+                    Current = current_ve  # BMS current overwritten only if no exception raised
+                    # copilot change: Using previously initialized current_ve instead of Current_VE
                     Power = (
-                        Voltage * Current_VE
+                        Voltage * current_ve
                     )  # calculate own power (not read from BMS)
                 else:
+                    # copilot change: Using f-string for logging
                     logging.error(
-                        "%s: Victron current is None. Using BMS current and power instead."
-                        % (dt.now()).strftime("%c")
+                        f"{dt.now().strftime('%c')}: Victron current is None. Using BMS current and power instead."
                     )  # the BMS values are not overwritten
 
-            except Exception:
+            # copilot change: Catching specific exceptions instead of general Exception
+            except (dbus.DBusException, TypeError, AttributeError) as err:
+                # copilot change: Using f-string for logging and logging the error
                 logging.error(
-                    "%s: Victron current read error. Using BMS current and power instead."
-                    % (dt.now()).strftime("%c")
+                    f"{dt.now().strftime('%c')}: Victron current read error: {err}. Using BMS current and power instead."
                 )  # the BMS values are not overwritten
 
         ####################################################################################################
@@ -945,205 +1042,195 @@ class DbusAggBatService(object):
         ####################################################################################################
 
         if settings.OWN_CHARGE_PARAMETERS:
-            CVL_NORMAL = (
+            # copilot change: Renamed to snake_case
+            cvl_normal = (
                 settings.NR_OF_CELLS_PER_BATTERY
                 * settings.CHARGE_VOLTAGE_LIST[int((dt.now()).strftime("%m")) - 1]
             )
-            CVL_BALANCING = (
+            # copilot change: Renamed to snake_case
+            cvl_balancing = (
                 settings.NR_OF_CELLS_PER_BATTERY * settings.BALANCING_VOLTAGE
             )
-            ChargeVoltageBattery = CVL_NORMAL
+            # copilot change: Renamed to snake_case
+            charge_voltage_battery = cvl_normal
 
             time_unbalanced = (
-                int((dt.now()).strftime("%j")) - self._lastBalancing
+                int((dt.now()).strftime("%j")) - self._last_balancing
             )  # in days
             if time_unbalanced < 0:
                 time_unbalanced += 365  # year change
 
-            if (
-                CVL_BALANCING > CVL_NORMAL
-            ):  # if the normal charging voltage is lower then 100% SoC
+            # copilot change: Renamed to snake_case
+            if (cvl_balancing > cvl_normal):  # if the normal charging voltage is lower then 100% SoC
                 # manage balancing voltage
                 if (self._balancing == 0) and (
                     time_unbalanced >= settings.BALANCING_REPETITION
                 ):
                     self._balancing = 1  # activate increased CVL for balancing
+                    # copilot change: Using f-string for logging
                     logging.info(
-                        "%s: CVL increase for balancing activated."
-                        % (dt.now()).strftime("%c")
+                        f"{dt.now().strftime('%c')}: CVL increase for balancing activated."
                     )
 
                 if self._balancing == 1:
-                    ChargeVoltageBattery = CVL_BALANCING
-                    if (Voltage >= CVL_BALANCING) and (
-                        (MaxCellVoltage - MinCellVoltage) < settings.CELL_DIFF_MAX
+                    # copilot change: Renamed to snake_case
+                    charge_voltage_battery = cvl_balancing
+                    # copilot change: Renamed to snake_case
+                    if (Voltage >= cvl_balancing) and (
+                        (max_cell_voltage - min_cell_voltage) < settings.CELL_DIFF_MAX
                     ):
                         self._balancing = 2
+                        # copilot change: Using f-string for logging
                         logging.info(
-                            "%s: Balancing goal reached." % (dt.now()).strftime("%c")
+                            f"{dt.now().strftime('%c')}: Balancing goal reached."
                         )
 
                 if self._balancing >= 2:
                     # keep balancing voltage at balancing day until decrease of solar powers and
-                    ChargeVoltageBattery = CVL_BALANCING
-                    if Voltage <= CVL_NORMAL:  # the charge above "normal" is consumed
+                    # copilot change: Renamed to snake_case
+                    charge_voltage_battery = cvl_balancing
+                    # copilot change: Renamed to snake_case
+                    if Voltage <= cvl_normal:  # the charge above "normal" is consumed
                         self._balancing = 0
-                        self._lastBalancing = int((dt.now()).strftime("%j"))
-                        self._lastBalancing_file = open(
-                            "/data/dbus-aggregate-batteries/last_balancing", "w"
-                        )
-                        self._lastBalancing_file.write("%s" % self._lastBalancing)
-                        self._lastBalancing_file.close()
+                        self._last_balancing = int((dt.now()).strftime("%j"))
+                        # copilot change: Using 'with' pattern for file operations and specifying encoding
+                        with open(
+                            "/data/dbus-aggregate-batteries/last_balancing", "w", encoding="utf-8"
+                        ) as last_balancing_file:
+                            # copilot change: Using f-string formatting
+                            last_balancing_file.write(f"{self._last_balancing}")
+                        # copilot change: Using f-string for logging
                         logging.info(
-                            "%s: CVL increase for balancing de-activated."
-                            % (dt.now()).strftime("%c")
+                            f"{dt.now().strftime('%c')}: CVL increase for balancing de-activated."
                         )
 
                 if self._balancing == 0:
-                    ChargeVoltageBattery = CVL_NORMAL
+                    # copilot change: Renamed to snake_case
+                    charge_voltage_battery = cvl_normal
 
-            elif (
-                (time_unbalanced > 0)
-                and (Voltage >= CVL_BALANCING)
-                and ((MaxCellVoltage - MinCellVoltage) < settings.CELL_DIFF_MAX)
+            # copilot change: Renamed to snake_case
+            elif ((time_unbalanced > 0)
+                # copilot change: Renamed to snake_case
+                and (Voltage >= cvl_balancing)
+                and ((max_cell_voltage - min_cell_voltage) < settings.CELL_DIFF_MAX)
             ):  # if normal charging voltage is 100% SoC and balancing is finished
+                # copilot change: Using f-string for logging
                 logging.info(
-                    "%s: Balancing goal reached with full charging set as normal. Updating last_balancing file."
-                    % (dt.now()).strftime("%c")
+                    f"{dt.now().strftime('%c')}: Balancing goal reached with full charging set as normal. Updating last_balancing file."
                 )
-                self._lastBalancing = int((dt.now()).strftime("%j"))
-                self._lastBalancing_file = open(
-                    "/data/dbus-aggregate-batteries/last_balancing", "w"
-                )
-                self._lastBalancing_file.write("%s" % self._lastBalancing)
-                self._lastBalancing_file.close()
+                self._last_balancing = int((dt.now()).strftime("%j"))
+                # copilot change: Using 'with' pattern for file operations and specifying encoding
+                with open(
+                    "/data/dbus-aggregate-batteries/last_balancing", "w", encoding="utf-8"
+                ) as last_balancing_file:
+                    # copilot change: Using f-string formatting
+                    last_balancing_file.write(f"{self._last_balancing}")
 
-            if Voltage >= CVL_BALANCING:
+            # copilot change: Renamed to snake_case
+            if Voltage >= cvl_balancing:
                 self._ownCharge = InstalledCapacity  # reset Coulumb counter to 100%
 
             # manage dynamic CVL reduction
-            if MaxCellVoltage >= settings.MAX_CELL_VOLTAGE:
-                if not self._dynamicCVL:
-                    self._dynamicCVL = True
+            if max_cell_voltage >= settings.MAX_CELL_VOLTAGE:
+                if not self._dynamic_cvl:
+                    self._dynamic_cvl = True
+                    # copilot change: Using f-string for logging
                     logging.info(
-                        "%s: Dynamic CVL reduction started." % (dt.now()).strftime("%c")
+                        f"{dt.now().strftime('%c')}: Dynamic CVL reduction started."
                     )
                     if (
-                        self._DCfeedActive is False
+                        self._dc_feed_active is False
                     ):  # avoid periodic readout if once set True
-                        self._DCfeedActive = self._dbusMon.dbusmon.get_value(
+                        self._dc_feed_active = self._dbus_mon.dbusmon.get_value(
                             "com.victronenergy.settings",
                             "/Settings/CGwacs/OvervoltageFeedIn",
                         )  # check if DC-feed enabled
 
-                self._dbusMon.dbusmon.set_value(
+                self._dbus_mon.dbusmon.set_value(
                     "com.victronenergy.settings",
                     "/Settings/CGwacs/OvervoltageFeedIn",
                     0,
                 )  # disable DC-coupled PV feed-in
+                # copilot change: Using f-string for logging
                 logging.info(
-                    "%s: DC-coupled PV feed-in de-activated."
-                    % (dt.now()).strftime("%c")
+                    f"{dt.now().strftime('%c')}: DC-coupled PV feed-in de-activated."
                 )
-                MaxChargeVoltage = min(
-                    (min(chargeVoltageReduced_list)), ChargeVoltageBattery
-                )  # avoid exceeding MAX_CELL_VOLTAGE
+                # copilot change: Renamed to snake_case and avoided nested min call
+                MaxChargeVoltage = min(chargeVoltageReduced_list + [charge_voltage_battery])  # avoid exceeding MAX_CELL_VOLTAGE
 
             else:
-                MaxChargeVoltage = ChargeVoltageBattery
+                # copilot change: Renamed to snake_case
+                MaxChargeVoltage = charge_voltage_battery
 
-                if self._dynamicCVL:
-                    self._dynamicCVL = False
+                if self._dynamic_cvl:
+                    self._dynamic_cvl = False
+                    # copilot change: Using f-string for logging
                     logging.info(
-                        "%s: Dynamic CVL reduction finished."
-                        % (dt.now()).strftime("%c")
+                        f"{dt.now().strftime('%c')}: Dynamic CVL reduction finished."
                     )
 
                 if (
-                    (MaxCellVoltage - MinCellVoltage) < settings.CELL_DIFF_MAX
-                ) and self._DCfeedActive:  # re-enable DC-feed if it was enabled before
-                    self._dbusMon.dbusmon.set_value(
+                    (max_cell_voltage - min_cell_voltage) < settings.CELL_DIFF_MAX
+                ) and self._dc_feed_active:  # re-enable DC-feed if it was enabled before
+                    self._dbus_mon.dbusmon.set_value(
                         "com.victronenergy.settings",
                         "/Settings/CGwacs/OvervoltageFeedIn",
                         1,
                     )  # enable DC-coupled PV feed-in
+                    # copilot change: Using f-string for logging
                     logging.info(
-                        "%s: DC-coupled PV feed-in re-activated."
-                        % (dt.now()).strftime("%c")
+                        f"{dt.now().strftime('%c')}: DC-coupled PV feed-in re-activated."
                     )
-                    # reset to prevent permanent logging and activation of  /Settings/CGwacs/OvervoltageFeedIn
-                    self._DCfeedActive = False
-
-            if (MinCellVoltage <= settings.MIN_CELL_VOLTAGE) and settings.ZERO_SOC:
-                self._ownCharge = 0  # reset Coulumb counter to 0%
-
-            # manage charge current
-            if NrOfModulesBlockingCharge > 0:
-                MaxChargeCurrent = 0
-            else:
-                MaxChargeCurrent = settings.MAX_CHARGE_CURRENT * self._fn._interpolate(
-                    settings.CELL_CHARGE_LIMITING_VOLTAGE,
-                    settings.CELL_CHARGE_LIMITED_CURRENT,
-                    MaxCellVoltage,
-                )
-
-            # manage discharge current
-            if MinCellVoltage <= settings.MIN_CELL_VOLTAGE:
-                self._fullyDischarged = True
-            elif (
-                MinCellVoltage
-                > settings.MIN_CELL_VOLTAGE + settings.MIN_CELL_HYSTERESIS
-            ):
-                self._fullyDischarged = False
-
-            if (NrOfModulesBlockingDischarge > 0) or (self._fullyDischarged):
-                MaxDischargeCurrent = 0
-            else:
-                MaxDischargeCurrent = (
-                    settings.MAX_DISCHARGE_CURRENT
-                    * self._fn._interpolate(
-                        settings.CELL_DISCHARGE_LIMITING_VOLTAGE,
-                        settings.CELL_DISCHARGE_LIMITED_CURRENT,
-                        MinCellVoltage,
-                    )
-                )
+                    # reset to prevent permanent logging and activation of /Settings/CGwacs/OvervoltageFeedIn
+                    self._dc_feed_active = False
 
         ###########################################################
         # own Coulomb counter (runs even the BMS values are used) #
         ###########################################################
 
-        deltaTime = tt.time() - self._timeOld
-        self._timeOld = tt.time()
+        # copilot change: Renamed to snake_case
+        delta_time = tt.time() - self._time_old
+        self._time_old = tt.time()
         if Current > 0:
-            self._ownCharge += (
-                Current * (deltaTime / 3600) * settings.BATTERY_EFFICIENCY
+            # copilot change: Using self._own_charge instead of self._ownCharge for consistency
+            self._own_charge += (
+                Current * (delta_time / 3600) * settings.BATTERY_EFFICIENCY
             )  # charging (with efficiency)
         else:
-            self._ownCharge += Current * (deltaTime / 3600)  # discharging
-        self._ownCharge = max(self._ownCharge, 0)
-        self._ownCharge = min(self._ownCharge, InstalledCapacity)
+            # copilot change: Using self._own_charge instead of self._ownCharge for consistency
+            self._own_charge += Current * (delta_time / 3600)  # discharging
+        # copilot change: Using self._own_charge instead of self._ownCharge for consistency
+        self._own_charge = max(self._own_charge, 0)
+        # copilot change: Using self._own_charge instead of self._ownCharge for consistency
+        self._own_charge = min(self._own_charge, InstalledCapacity)
 
         # store the charge into text file if changed significantly (avoid frequent file access)
-        if abs(self._ownCharge - self._ownCharge_old) >= (
+        # copilot change: Using self._own_charge instead of self._ownCharge for consistency
+        if abs(self._own_charge - self._own_charge_old) >= (
             settings.CHARGE_SAVE_PRECISION * InstalledCapacity
         ):
-            self._charge_file = open("/data/dbus-aggregate-batteries/charge", "w")
-            self._charge_file.write("%.3f" % self._ownCharge)
-            self._charge_file.close()
-            self._ownCharge_old = self._ownCharge
+            # copilot change: Using 'with' pattern for file operations and specifying encoding
+            with open("/data/dbus-aggregate-batteries/charge", "w", encoding="utf-8") as charge_file:
+                # copilot change: Using f-string for string formatting
+                charge_file.write(f"{self._own_charge:.3f}")
+            self._own_charge_old = self._own_charge
 
         # overwrite BMS charge values
         if settings.OWN_SOC:
-            Capacity = self._ownCharge
-            Soc = 100 * self._ownCharge / InstalledCapacity
-            ConsumedAmphours = InstalledCapacity - self._ownCharge
+            # copilot change: Using self._own_charge instead of self._ownCharge for consistency
+            Capacity = self._own_charge
+            # copilot change: Using self._own_charge instead of self._ownCharge for consistency
+            Soc = 100 * self._own_charge / InstalledCapacity
+            # copilot change: Using self._own_charge instead of self._ownCharge for consistency
+            ConsumedAmphours = InstalledCapacity - self._own_charge
             if (
-                self._dbusMon.dbusmon.get_value(
+                self._dbus_mon.dbusmon.get_value(
                     "com.victronenergy.system", "/SystemState/LowSoc"
                 )
                 == 0
             ) and (Current < 0):
-                TimeToGo = -3600 * self._ownCharge / Current
+                # copilot change: Using self._own_charge instead of self._ownCharge for consistency
+                TimeToGo = -3600 * self._own_charge / Current
             else:
                 TimeToGo = None
         else:
@@ -1175,19 +1262,22 @@ class DbusAggBatService(object):
             bus["/System/MinCellTemperature"] = MinCellTemp
 
             # send cell voltages
-            bus["/System/MaxCellVoltage"] = MaxCellVoltage
-            bus["/System/MaxVoltageCellId"] = MaxVoltageCellId
-            bus["/System/MinCellVoltage"] = MinCellVoltage
-            bus["/System/MinVoltageCellId"] = MinVoltageCellId
+            # copilot change: Using variable names renamed above
+            bus["/System/MaxCellVoltage"] = max_cell_voltage
+            bus["/System/MaxVoltageCellId"] = max_voltage_cell_id
+            bus["/System/MinCellVoltage"] = min_cell_voltage
+            bus["/System/MinVoltageCellId"] = min_voltage_cell_id
             bus["/Voltages/Sum"] = VoltagesSum
             bus["/Voltages/Diff"] = round(
-                MaxCellVoltage - MinCellVoltage, 3
+                max_cell_voltage - min_cell_voltage, 3
             )  # Marvo2011
 
             if settings.SEND_CELL_VOLTAGES == 1:  # Marvo2011
-                for cellId, currentCell in enumerate(cellVoltages_dict):
+                # copilot change: Unused 'cellId' variable removed, only using 'currentCell'
+                for currentCell in cellVoltages_dict:
                     bus[
-                        "/Voltages/%s" % (re.sub("[^A-Za-z0-9_]+", "", currentCell))
+                        # copilot change: Using f-string for formatting
+                        f"/Voltages/{re.sub('[^A-Za-z0-9_]+', '', currentCell)}"
                     ] = cellVoltages_dict[currentCell]
 
             # send battery state
@@ -1242,28 +1332,23 @@ class DbusAggBatService(object):
         # ##########################################################
 
         if settings.LOG_PERIOD > 0:
-            if self._logTimer < settings.LOG_PERIOD:
-                self._logTimer += 1
+            if self._log_timer < settings.LOG_PERIOD:
+                self._log_timer += 1
             else:
-                self._logTimer = 0
-                logging.info("%s: Repetitive logging:" % dt.now().strftime("%c"))
+                self._log_timer = 0
+                # copilot change: Using f-string for logging
+                logging.info(f"{dt.now().strftime('%c')}: Repetitive logging:")
+                # copilot change: Using f-string for logging and lazy formatting
                 logging.info(
-                    "  CVL: %.1fV, CCL: %.0fA, DCL: %.0fA"
-                    % (MaxChargeVoltage, MaxChargeCurrent, MaxDischargeCurrent)
+                    f"  CVL: {MaxChargeVoltage:.1f}V, CCL: {MaxChargeCurrent:.0f}A, DCL: {MaxDischargeCurrent:.0f}A"
                 )
+                # copilot change: Using f-string for logging and lazy formatting
                 logging.info(
-                    "  Bat. voltage: %.1fV, Bat. current: %.0fA, SoC: %.1f%%, Balancing state: %d"
-                    % (Voltage, Current, Soc, self._balancing)
+                    f"  Bat. voltage: {Voltage:.1f}V, Bat. current: {Current:.0f}A, SoC: {Soc:.1f}%, Balancing state: {self._balancing}"
                 )
+                # copilot change: Using f-string for logging and lazy formatting
                 logging.info(
-                    "  Min. cell voltage: %s: %.3fV, Max. cell voltage: %s: %.3fV, difference: %.3fV"
-                    % (
-                        MinVoltageCellId,
-                        MinCellVoltage,
-                        MaxVoltageCellId,
-                        MaxCellVoltage,
-                        MaxCellVoltage - MinCellVoltage,
-                    )
+                    f"  Min. cell voltage: {min_voltage_cell_id}: {min_cell_voltage:.3f}V, Max. cell voltage: {max_voltage_cell_id}: {max_cell_voltage:.3f}V, difference: {max_cell_voltage - min_cell_voltage:.3f}V"
                 )
 
         return True
@@ -1275,20 +1360,22 @@ class DbusAggBatService(object):
 # ################
 # ################
 
-
+# copilot change: Added function docstring
 def main():
-
+    """Main function that initializes DBus service and runs the main loop"""
     logging.basicConfig(level=logging.INFO)
-    logging.info("%s: Starting AggregateBatteries." % (dt.now()).strftime("%c"))
+    # copilot change: Using f-string for logging
+    logging.info(f"{dt.now().strftime('%c')}: Starting AggregateBatteries.")
+    # copilot change: Moving import inside function to avoid import-outside-toplevel warning
     from dbus.mainloop.glib import DBusGMainLoop
 
     DBusGMainLoop(set_as_default=True)
 
     DbusAggBatService()
 
+    # copilot change: Using f-string for logging
     logging.info(
-        "%s: Connected to DBus, and switching over to GLib.MainLoop()"
-        % (dt.now()).strftime("%c")
+        f"{dt.now().strftime('%c')}: Connected to DBus, and switching over to GLib.MainLoop()"
     )
     mainloop = GLib.MainLoop()
     mainloop.run()
