@@ -19,5 +19,5 @@ jobs:
         with:
           max-line-length: "100"
           ignore: "F444"
-          path: ".py"
+          path: "*.py"
           plugins: "flake8-black"
