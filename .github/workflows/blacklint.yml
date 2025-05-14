@@ -10,19 +10,16 @@ on:
     # Run on changes in the etc folder
     # Run on any file change
     paths:
-      - '**/*.py'
+      - '*.py'
   pull_request:
     # Run on all branches
     branches:
       - '**'
     # Run on any file change
     paths:
-      - etc/**
-      - '**/*.py'
+      - '*.py'
 
-paths:
-  - etc/**
-  - '**/*.py'
+
 jobs:
   lint:
     runs-on: ubuntu-latest
