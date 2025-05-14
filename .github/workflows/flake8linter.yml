@@ -1,24 +1,6 @@
 name: flake8 Lint
 
-on:
-  push:
-    # Run on all branches
-    branches:
-      # include
-      - '**'
-
-    # Run on changes in the etc folder
-    # Run on any file change
-    paths:
-      - '**/*.py'
-  pull_request:
-    # Run on all branches
-    branches:
-      - '**'
-    # Run on any file change
-    paths:
-      - etc/**
-      - '**/*.py'
+on: [push]
 
 
 jobs:
