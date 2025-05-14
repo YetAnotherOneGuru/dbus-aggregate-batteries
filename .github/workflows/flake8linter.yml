@@ -19,4 +19,3 @@ jobs:
         with:
           max-line-length: "100"
           ignore: "F444"
-          plugins: "flake8-black"
