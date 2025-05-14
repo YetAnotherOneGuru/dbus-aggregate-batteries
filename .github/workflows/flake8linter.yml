@@ -16,3 +16,8 @@ jobs:
           python-version: "3.11"
       - name: flake8 Lint
         uses: py-actions/flake8@v2
+        with:
+          max-line-length: "100"
+          ignore: "F444"
+          path: ".py"
+          plugins: "flake8-black"
