@@ -86,12 +86,12 @@ class DbusAggBatService(object):
             self._charge_file.close()
             self._ownCharge_old = self._ownCharge
             logging.info(
-                "%s: Initial Ah read from file: %.0fAh"
-                % ((dt.now()).strftime("%c"), self._ownCharge)
+                f"{(dt.now()).strftime('%c')}: Initial Ah read from file: {self._ownCharge:.0f}Ah"  # copilot change: C0209
+
             )
         except Exception:
             logging.error(
-                "%s: Charge file read error. Exiting." % (dt.now()).strftime("%c")
+                f"{(dt.now()).strftime('%c')}: Charge file read error. Exiting."  # copilot change: C0209
             )
             sys.exit()
 
@@ -110,20 +110,22 @@ class DbusAggBatService(object):
                 if time_unbalanced < 0:
                     time_unbalanced += 365  # year change
                 logging.info(
-                    "%s: Last balancing done at the %d. day of the year"
-                    % ((dt.now()).strftime("%c"), self._lastBalancing)
+                    f"{(dt.now()).strftime('%c')}: Last balancing done at the {self._lastBalancing}. day of the year"  # copilot change: C0209
+
                 )
-                logging.info("Batteries balanced %d days ago." % time_unbalanced)
+                logging.info(f"Batteries balanced {time_unbalanced} days ago.")  # copilot change: C0209
+
             except Exception:
                 logging.error(
-                    "%s: Last balancing file read error. Exiting."
-                    % (dt.now()).strftime("%c")
+                    f"{(dt.now()).strftime('%c')}: Last balancing file read error. Exiting."  # copilot change: C0209
+                    
+
                 )
                 sys.exit()
 
         # Create the management objects, as specified in the ccgx dbus-api document
         self._dbusservice.add_path("/Mgmt/ProcessName", __file__)
-        self._dbusservice.add_path("/Mgmt/ProcessVersion", "Python " + platform.python_version())
+        self._dbusservice.add_path("/Mgmt/ProcessVersion", f"Python {platform.python_version()}")  # copilot change: C0209
         self._dbusservice.add_path("/Mgmt/Connection", "Virtual")
 
         # Create the mandatory objects
@@ -141,19 +143,19 @@ class DbusAggBatService(object):
             "/Dc/0/Voltage",
             None,
             writeable=True,
-            gettextcallback=lambda a, x: "{:.2f}V".format(x),
+            gettextcallback=lambda a, x: f"{x:.2f}V",  # copilot change: C0209
         )
         self._dbusservice.add_path(
             "/Dc/0/Current",
             None,
             writeable=True,
-            gettextcallback=lambda a, x: "{:.2f}A".format(x),
+            gettextcallback=lambda a, x: f"{x:.2f}A",  # copilot change: C0209
         )
         self._dbusservice.add_path(
             "/Dc/0/Power",
             None,
             writeable=True,
-            gettextcallback=lambda a, x: "{:.0f}W".format(x),
+            gettextcallback=lambda a, x: f"{x:.0f}W",  # copilot change: C0209
         )
 
         # Create capacity paths
@@ -162,15 +164,15 @@ class DbusAggBatService(object):
             "/Capacity",
             None,
             writeable=True,
-            gettextcallback=lambda a, x: "{:.0f}Ah".format(x),
+            gettextcallback=lambda a, x: f"{x:.0f}Ah",  # copilot change: C0209
         )
         self._dbusservice.add_path(
             "/InstalledCapacity",
             None,
-            gettextcallback=lambda a, x: "{:.0f}Ah".format(x),
+            gettextcallback=lambda a, x: f"{x:.0f}Ah",  # copilot change: C0209
         )
         self._dbusservice.add_path(
-            "/ConsumedAmphours", None, gettextcallback=lambda a, x: "{:.0f}Ah".format(x)
+            "/ConsumedAmphours", None, gettextcallback=lambda a, x: f"{x:.0f}Ah"  # copilot change: C0209
         )
 
         # Create temperature paths
@@ -183,14 +185,14 @@ class DbusAggBatService(object):
             "/System/MinCellVoltage",
             None,
             writeable=True,
-            gettextcallback=lambda a, x: "{:.3f}V".format(x),
+            gettextcallback=lambda a, x: f"{x:.3f}V",  # copilot change: C0209
         )  # marvo2011
         self._dbusservice.add_path("/System/MinVoltageCellId", None, writeable=True)
         self._dbusservice.add_path(
             "/System/MaxCellVoltage",
             None,
             writeable=True,
-            gettextcallback=lambda a, x: "{:.3f}V".format(x),
+            gettextcallback=lambda a, x: f"{x:.3f}V",  # copilot change: C0209
         )  # marvo2011
         self._dbusservice.add_path("/System/MaxVoltageCellId", None, writeable=True)
         self._dbusservice.add_path("/System/NrOfCellsPerBattery", None, writeable=True)
@@ -206,13 +208,13 @@ class DbusAggBatService(object):
             "/Voltages/Sum",
             None,
             writeable=True,
-            gettextcallback=lambda a, x: "{:.3f}V".format(x),
+            gettextcallback=lambda a, x: f"{x:.3f}V",  # copilot change: C0209
         )
         self._dbusservice.add_path(
             "/Voltages/Diff",
             None,
             writeable=True,
-            gettextcallback=lambda a, x: "{:.3f}V".format(x),
+            gettextcallback=lambda a, x: f"{x:.3f}V",  # copilot change: C0209
         )
         self._dbusservice.add_path("/TimeToGo", None, writeable=True)
 
@@ -239,19 +241,19 @@ class DbusAggBatService(object):
             "/Info/MaxChargeCurrent",
             None,
             writeable=True,
-            gettextcallback=lambda a, x: "{:.1f}A".format(x),
+            gettextcallback=lambda a, x: f"{x:.1f}A",  # copilot change: C0209
         )
         self._dbusservice.add_path(
             "/Info/MaxDischargeCurrent",
             None,
             writeable=True,
-            gettextcallback=lambda a, x: "{:.1f}A".format(x),
+            gettextcallback=lambda a, x: f"{x:.1f}A",  # copilot change: C0209
         )
         self._dbusservice.add_path(
             "/Info/MaxChargeVoltage",
             None,
             writeable=True,
-            gettextcallback=lambda a, x: "{:.2f}V".format(x),
+            gettextcallback=lambda a, x: f"{x:.2f}V",  # copilot change: C0209
         )
         self._dbusservice.add_path("/Io/AllowToCharge", None, writeable=True)
         self._dbusservice.add_path("/Io/AllowToDischarge", None, writeable=True)
@@ -273,7 +275,7 @@ class DbusAggBatService(object):
     # #############################################################################################################
 
     def _startMonitor(self):
-        logging.info("%s: Starting battery monitor." % (dt.now()).strftime("%c"))
+        logging.info(f"{dt.now().strftime('%c')}: Starting battery monitor.")  # copilot change: C0209
         self._dbusMon = DbusMon()
 
     # ####################################################################
@@ -284,18 +286,18 @@ class DbusAggBatService(object):
     # ####################################################################
 
     def _find_settings(self):
-        logging.info(
-            "%s: Searching Settings: Trial Nr. %d"
-            % ((dt.now()).strftime("%c"), (self._searchTrials + 1))
-        )
+        logging.info(f"{dt.now().strftime('%c')}: Searching Settings: Trial Nr. {self._searchTrials + 1}")  # copilot change: C0209
+
+
+
         try:
             for service in self._dbusConn.list_names():
                 if "com.victronenergy.settings" in service:
                     self._settings = service
-                    logging.info(
-                        "%s: com.victronenergy.settings found."
-                        % (dt.now()).strftime("%c")
-                    )
+                    logging.info(f"{dt.now().strftime('%c')}: com.victronenergy.settings found.")  # copilot change: C0209
+
+
+
         except Exception:
             pass
 
@@ -309,10 +311,10 @@ class DbusAggBatService(object):
             self._searchTrials += 1
             return True  # next trial
         else:
-            logging.error(
-                "%s: com.victronenergy.settings not found. Exiting."
-                % (dt.now()).strftime("%c")
-            )
+            logging.error(f"{dt.now().strftime('%c')}: com.victronenergy.settings not found. Exiting.")  # copilot change: C0209
+
+
+
             sys.exit()
 
     # ####################################################################
@@ -325,20 +327,20 @@ class DbusAggBatService(object):
         self._batteries_dict = {}  # Marvo2011
         batteriesCount = 0
         productName = ""
-        logging.info(
-            "%s: Searching batteries: Trial Nr. %d"
-            % ((dt.now()).strftime("%c"), (self._searchTrials + 1))
-        )
+        logging.info(f"{dt.now().strftime('%c')}: Searching batteries: Trial Nr. {self._searchTrials + 1}")  # copilot change: C0209
+
+
+
         try:  # if Dbus monitor not running yet, new trial instead of exception
             for service in self._dbusConn.list_names():
                 if "com.victronenergy" in service:
-                    logging.info("%s: Dbusmonitor sees: %s" % ((dt.now()).strftime("%c"), service))
+                    logging.info(f"{dt.now().strftime('%c')}: Dbusmonitor sees: {service}")  # copilot change: C0209
                 if settings.BATTERY_SERVICE_NAME in service:
                     productName = self._dbusMon.dbusmon.get_value(
                         service, settings.BATTERY_PRODUCT_NAME_PATH
                     )
                     if (productName != None) and (settings.BATTERY_PRODUCT_NAME in productName):
-                        logging.info("%s: Correct battery product name %s found in the service %s" % ((dt.now()).strftime("%c"), productName, service))
+                        logging.info(f"{dt.now().strftime('%c')}: Correct battery product name {productName} found in the service {service}")  # copilot change: C0209
                         # Custom name, if exists, Marvo2011
                         try:
                             BatteryName = self._dbusMon.dbusmon.get_value(
@@ -348,20 +350,20 @@ class DbusAggBatService(object):
                             BatteryName = "Battery%d" % (batteriesCount + 1)
                         # Check if all batteries have custom names
                         if BatteryName in self._batteries_dict:
-                            BatteryName = "%s%d" % (BatteryName, batteriesCount + 1)
+                            BatteryName = f"{BatteryName}{batteriesCount + 1}"  # copilot change: C0209
 
                         self._batteries_dict[BatteryName] = service
                         logging.info(
-                            "%s: %s found, named as: %s."
-                            % (
-                                (dt.now()).strftime("%c"),
-                                (
-                                    self._dbusMon.dbusmon.get_value(
-                                        service, "/ProductName"
-                                    )
-                                ),
-                                BatteryName,
-                            )
+                            f"{(dt.now()).strftime('%c')}: {self._dbusMon.dbusmon.get_value(service, '/ProductName')}, named as: {BatteryName}."  # copilot change: C0209
+
+
+
+
+
+
+
+
+
                         )
 
                         batteriesCount += 1
@@ -379,7 +381,7 @@ class DbusAggBatService(object):
                                     ),
                                     None,
                                     writeable=True,
-                                    gettextcallback=lambda a, x: "{:.3f}V".format(x),
+                                    gettextcallback=lambda a, x: f"{x:.3f}V",  # copilot change: C0209
                                 )
 
                         
@@ -390,10 +392,10 @@ class DbusAggBatService(object):
                             )
                             != settings.NR_OF_CELLS_PER_BATTERY
                         ):
-                            logging.error(
-                                "%s: Number of cells of batteries is not correct. Exiting."
-                                % (dt.now()).strftime("%c")
-                            )
+                            logging.error(f"{(dt.now()).strftime('%c')}: Number of cells of batteries is not correct. Exiting.")  # copilot change: C0209
+
+
+
                             sys.exit()
 
                         # end of section, Marvo2011
@@ -402,13 +404,13 @@ class DbusAggBatService(object):
                         (productName != None) and (settings.SMARTSHUNT_NAME_KEY_WORD in productName)
                     ):  # if SmartShunt found, can be used for DC load current
                         self._smartShunt = service
-                        logging.info("%s: Correct Smart Shunt product name %s found in the service %s" % ((dt.now()).strftime("%c"), productName, service))
+                        logging.info(f"{dt.now().strftime('%c')}: Correct Smart Shunt product name {productName} found in the service {service}")  # copilot change: C0209
 
         except Exception:
             pass
-        logging.info(
-            "%s: %d batteries found." % ((dt.now()).strftime("%c"), batteriesCount)
-        )
+        logging.info(f"{(dt.now()).strftime('%c')}: {batteriesCount} batteries found.")  # copilot change: C0209
+
+
 
         if batteriesCount == settings.NR_OF_BATTERIES:
             if settings.CURRENT_FROM_VICTRON:
@@ -426,9 +428,9 @@ class DbusAggBatService(object):
             self._searchTrials += 1
             return True  # next trial
         else:
-            logging.error(
-                "%s: Required number of batteries not found. Exiting."
-                % (dt.now()).strftime("%c")
+            logging.error(f"{(dt.now()).strftime('%c')}: Required number of batteries not found. Exiting."  # copilot change: C0209
+
+
             )
             sys.exit()
 
@@ -439,20 +441,24 @@ class DbusAggBatService(object):
     # #########################################################################
 
     def _find_multis(self):
-        logging.info(
-            "%s: Searching Multi/Quatro VEbus: Trial Nr. %d"
-            % ((dt.now()).strftime("%c"), (self._searchTrials + 1))
-        )
+        logging.info(f"{dt.now().strftime('%c')}: Searching Multi/Quatro VEbus: Trial Nr. {self._searchTrials + 1}")  # copilot change: C0209
+
+
+
         try:
             for service in self._dbusConn.list_names():
                 if settings.MULTI_KEY_WORD in service:
                     self._multi = service
                     logging.info(
-                        "%s: %s found."
-                        % (
-                            (dt.now()).strftime("%c"),
-                            (self._dbusMon.dbusmon.get_value(service, "/ProductName")),
-                        )
+                        f"{dt.now().strftime('%c')}: {self._dbusMon.dbusmon.get_value(service, '/ProductName')} found."  # copilot change: C0209
+
+
+
+
+                    
+                    
+                    
+                    
                     )
         except Exception:
             pass
@@ -474,7 +480,7 @@ class DbusAggBatService(object):
             return True  # next trial
         else:
             logging.error(
-                "%s: Multi/Quattro not found. Exiting." % (dt.now()).strftime("%c")
+                f"{(dt.now()).strftime('%c')}: Multi/Quattro not found. Exiting."  # copilot change: C0209
             )
             sys.exit()
 
@@ -487,26 +493,33 @@ class DbusAggBatService(object):
     def _find_mppts(self):
         self._mppts_list = []
         mpptsCount = 0
-        logging.info(
-            "%s: Searching MPPTs: Trial Nr. %d"
-            % ((dt.now()).strftime("%c"), (self._searchTrials + 1))
-        )
+        logging.info(f"{dt.now().strftime('%c')}: Searching MPPTs: Trial Nr. {self._searchTrials + 1}")  # copilot change: C0209
+
+
+
+        
+        
+        
         try:
             for service in self._dbusConn.list_names():
                 if settings.MPPT_KEY_WORD in service:
                     self._mppts_list.append(service)
                     logging.info(
-                        "%s: %s found."
-                        % (
-                            (dt.now()).strftime("%c"),
-                            (self._dbusMon.dbusmon.get_value(service, "/ProductName")),
-                        )
+                        f"{dt.now().strftime('%c')}: {self._dbusMon.dbusmon.get_value(service, '/ProductName')} found."  # copilot change: C0209
+
+
+
+                        
+                    
+                    
+
+                    
                     )
                     mpptsCount += 1
         except Exception:
             pass
 
-        logging.info("%s: %d MPPT(s) found." % ((dt.now()).strftime("%c"), mpptsCount))
+        logging.info(f"{(dt.now()).strftime('%c')}: {mpptsCount} MPPT(s) found.")  # copilot change: C0209
         if mpptsCount == settings.NR_OF_MPPTS:
             self._timeOld = tt.time()
             GLib.timeout_add(1000, self._update)
@@ -516,8 +529,9 @@ class DbusAggBatService(object):
             return True  # next trial
         else:
             logging.error(
-                "%s: Required number of MPPTs not found. Exiting."
-                % (dt.now()).strftime("%c")
+                f"{(dt.now()).strftime('%c')}: Required number of MPPTs not found. Exiting."  # copilot change: C0209
+
+            
             )
             sys.exit()
 
@@ -842,13 +856,15 @@ class DbusAggBatService(object):
 
         except Exception as err:
             self._readTrials += 1
-            logging.error("%s: Error: %s." % ((dt.now()).strftime("%c"), err))
-            logging.error("Occured during step %s, Battery %s." % (step, i))
-            logging.error("Read trial nr. %d" % self._readTrials)
+            logging.error(f"{dt.now().strftime('%c')}: Error: {err}." )  # copilot change: C0209
+            logging.error(f"Occured during step {step}, Battery {i}." )  # copilot change: C0209
+            logging.error(f"Read trial nr. {self._readTrials}" )  # copilot change: C0209
             if self._readTrials > settings.READ_TRIALS:
-                logging.error(
-                    "%s: DBus read failed. Exiting." % (dt.now()).strftime("%c")
-                )
+                logging.error(f"{dt.now().strftime('%c')}: DBus read failed. Exiting." )  # copilot change: C0209
+
+
+                
+                
                 sys.exit()
             else:
                 return True  # next call allowed
@@ -929,16 +945,18 @@ class DbusAggBatService(object):
                         Voltage * Current_VE
                     )  # calculate own power (not read from BMS)
                 else:
-                    logging.error(
-                        "%s: Victron current is None. Using BMS current and power instead."
-                        % (dt.now()).strftime("%c")
-                    )  # the BMS values are not overwritten
+                    logging.error(f"{dt.now().strftime('%c')}: Victron current is None. Using BMS current and power instead.")  # copilot change: C0209  # noqa: E501
 
+
+
+
+
+                    # the BMS values are not overwritten
             except Exception:
-                logging.error(
-                    "%s: Victron current read error. Using BMS current and power instead."
-                    % (dt.now()).strftime("%c")
-                )  # the BMS values are not overwritten
+                logging.error(f"{dt.now().strftime('%c')}: Victron current read error. Using BMS current and power instead.")  # copilot change: C0209
+                
+                
+                # the BMS values are not overwritten
 
         ####################################################################################################
         # Calculate own charge/discharge parameters (overwrite the values received from the SerialBattery) #
@@ -968,10 +986,13 @@ class DbusAggBatService(object):
                     time_unbalanced >= settings.BALANCING_REPETITION
                 ):
                     self._balancing = 1  # activate increased CVL for balancing
-                    logging.info(
-                        "%s: CVL increase for balancing activated."
-                        % (dt.now()).strftime("%c")
-                    )
+                    logging.info(f"{dt.now().strftime('%c')}: CVL increase for balancing activated.")  # copilot change: C0209
+
+
+
+
+
+
 
                 if self._balancing == 1:
                     ChargeVoltageBattery = CVL_BALANCING
@@ -979,9 +1000,11 @@ class DbusAggBatService(object):
                         (MaxCellVoltage - MinCellVoltage) < settings.CELL_DIFF_MAX
                     ):
                         self._balancing = 2
-                        logging.info(
-                            "%s: Balancing goal reached." % (dt.now()).strftime("%c")
-                        )
+                        logging.info(f"{dt.now().strftime('%c')}: Balancing goal reached." )  # copilot change: C0209
+
+
+
+
 
                 if self._balancing >= 2:
                     # keep balancing voltage at balancing day until decrease of solar powers and
@@ -994,10 +1017,10 @@ class DbusAggBatService(object):
                         )
                         self._lastBalancing_file.write("%s" % self._lastBalancing)
                         self._lastBalancing_file.close()
-                        logging.info(
-                            "%s: CVL increase for balancing de-activated."
-                            % (dt.now()).strftime("%c")
-                        )
+                        logging.info(f"{dt.now().strftime('%c')}: CVL increase for balancing de-activated." )  # copilot change: C0209
+
+
+
 
                 if self._balancing == 0:
                     ChargeVoltageBattery = CVL_NORMAL
@@ -1007,10 +1030,13 @@ class DbusAggBatService(object):
                 and (Voltage >= CVL_BALANCING)
                 and ((MaxCellVoltage - MinCellVoltage) < settings.CELL_DIFF_MAX)
             ):  # if normal charging voltage is 100% SoC and balancing is finished
-                logging.info(
-                    "%s: Balancing goal reached with full charging set as normal. Updating last_balancing file."
-                    % (dt.now()).strftime("%c")
-                )
+                logging.info(f"{dt.now().strftime('%c')}: Balancing goal reached with full charging set as normal. Updating last_balancing file." )  # copilot change: C0209
+
+
+
+                
+                
+                
                 self._lastBalancing = int((dt.now()).strftime("%j"))
                 self._lastBalancing_file = open(
                     "/data/dbus-aggregate-batteries/last_balancing", "w"
@@ -1025,9 +1051,11 @@ class DbusAggBatService(object):
             if MaxCellVoltage >= settings.MAX_CELL_VOLTAGE:
                 if not self._dynamicCVL:
                     self._dynamicCVL = True
-                    logging.info(
-                        "%s: Dynamic CVL reduction started." % (dt.now()).strftime("%c")
-                    )
+                    logging.info(f"{dt.now().strftime('%c')}: Dynamic CVL reduction started." )  # copilot change: C0209
+
+
+                    
+                    
                     if (
                         self._DCfeedActive is False
                     ):  # avoid periodic readout if once set True
@@ -1041,10 +1069,13 @@ class DbusAggBatService(object):
                     "/Settings/CGwacs/OvervoltageFeedIn",
                     0,
                 )  # disable DC-coupled PV feed-in
-                logging.info(
-                    "%s: DC-coupled PV feed-in de-activated."
-                    % (dt.now()).strftime("%c")
-                )
+                logging.info(f"{dt.now().strftime('%c')}: DC-coupled PV feed-in de-activated." )  # copilot change: C0209
+
+
+
+                
+                
+                
                 MaxChargeVoltage = min(
                     (min(chargeVoltageReduced_list)), ChargeVoltageBattery
                 )  # avoid exceeding MAX_CELL_VOLTAGE
@@ -1054,10 +1085,10 @@ class DbusAggBatService(object):
 
                 if self._dynamicCVL:
                     self._dynamicCVL = False
-                    logging.info(
-                        "%s: Dynamic CVL reduction finished."
-                        % (dt.now()).strftime("%c")
-                    )
+                    logging.info(f"{dt.now().strftime('%c')}: Dynamic CVL reduction finished." )  # copilot change: C0209
+
+
+
 
                 if (
                     (MaxCellVoltage - MinCellVoltage) < settings.CELL_DIFF_MAX
@@ -1067,10 +1098,13 @@ class DbusAggBatService(object):
                         "/Settings/CGwacs/OvervoltageFeedIn",
                         1,
                     )  # enable DC-coupled PV feed-in
-                    logging.info(
-                        "%s: DC-coupled PV feed-in re-activated."
-                        % (dt.now()).strftime("%c")
-                    )
+                    logging.info(f"{dt.now().strftime('%c')}: DC-coupled PV feed-in re-activated." )  # copilot change: C0209
+
+
+
+                    
+                    
+                    
                     # reset to prevent permanent logging and activation of  /Settings/CGwacs/OvervoltageFeedIn
                     self._DCfeedActive = False
 
@@ -1246,26 +1280,42 @@ class DbusAggBatService(object):
                 self._logTimer += 1
             else:
                 self._logTimer = 0
-                logging.info("%s: Repetitive logging:" % dt.now().strftime("%c"))
-                logging.info(
-                    "  CVL: %.1fV, CCL: %.0fA, DCL: %.0fA"
-                    % (MaxChargeVoltage, MaxChargeCurrent, MaxDischargeCurrent)
-                )
-                logging.info(
-                    "  Bat. voltage: %.1fV, Bat. current: %.0fA, SoC: %.1f%%, Balancing state: %d"
-                    % (Voltage, Current, Soc, self._balancing)
-                )
-                logging.info(
-                    "  Min. cell voltage: %s: %.3fV, Max. cell voltage: %s: %.3fV, difference: %.3fV"
-                    % (
-                        MinVoltageCellId,
-                        MinCellVoltage,
-                        MaxVoltageCellId,
-                        MaxCellVoltage,
-                        MaxCellVoltage - MinCellVoltage,
-                    )
-                )
+                logging.info(f"{dt.now().strftime('%c')}: Repetitive logging:" )  # copilot change: C0209
+                logging.info(f"  CVL: {MaxChargeVoltage:.1f}V, CCL: {MaxChargeCurrent:.0f}A, DCL: {MaxDischargeCurrent:.0f}A" )  # copilot change: C0209
 
+
+
+                logging.info(f"  Bat. voltage: {Voltage:.1f}V, Bat. current: {Current:.0f}A, SoC: {Soc:.1f}%, Balancing state: {self._balancing}" )  # copilot change: C0209
+
+
+
+
+                logging.info(f"  Min. cell voltage: {MinVoltageCellId}: {MinCellVoltage:.3f}V, Max. cell voltage: {MaxVoltageCellId}: {MaxCellVoltage:.3f}V, difference: {MaxCellVoltage - MinCellVoltage:.3f}V" )  # copilot change: C0209
+
+
+
+
+
+
+
+
+
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         return True
 
 
@@ -1279,17 +1329,20 @@ class DbusAggBatService(object):
 def main():
 
     logging.basicConfig(level=logging.INFO)
-    logging.info("%s: Starting AggregateBatteries." % (dt.now()).strftime("%c"))
+    logging.info(f"{dt.now().strftime('%c')}: Starting AggregateBatteries." )  # copilot change: C0209
     from dbus.mainloop.glib import DBusGMainLoop
 
     DBusGMainLoop(set_as_default=True)
 
     DbusAggBatService()
 
-    logging.info(
-        "%s: Connected to DBus, and switching over to GLib.MainLoop()"
-        % (dt.now()).strftime("%c")
-    )
+    logging.info(f"{dt.now().strftime('%c')}: Connected to DBus, and switching over to GLib.MainLoop()" )  # copilot change: C0209
+
+
+    
+    
+    
+    
     mainloop = GLib.MainLoop()
     mainloop.run()
 
