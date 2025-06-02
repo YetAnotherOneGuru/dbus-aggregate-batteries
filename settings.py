@@ -26,7 +26,7 @@ BATTERY_SERVICE_NAME = "com.victronenergy.battery"
 BATTERY_PRODUCT_NAME_PATH = "/ProductName"
 
 # Key world to identify the batteries (to exclude SmartShunt). If the BATTERY_PRODUCT_NAME_PATH, e.g. SerialBattery(Jkbms),
-# contains this key word, the device will be identified and included into the battery list. 
+# contains this key word, the device will be identified and included into the battery list.
 BATTERY_PRODUCT_NAME = "SerialBattery"
 
 # The name stored in the here selected BATTERY_INSTANCE_NAME_PATH will be taken as the name of the battery in the list.
@@ -134,7 +134,7 @@ MAX_CHARGE_CURRENT = 200
 MAX_DISCHARGE_CURRENT = 200
 
 # Settings limiting charge current when at least one cell is getting full or empty. The lists may have any length,
-# but the length must be same for voltage and current. Linear interpolation is used for values between. 
+# but the length must be same for voltage and current. Linear interpolation is used for values between.
 # The charge current limitation of empty cell reduces inverter power in case when the battery has to be charged from grid.
 
 CELL_CHARGE_LIMITING_VOLTAGE = [MIN_CELL_VOLTAGE, MIN_CELL_VOLTAGE + 0.05, BALANCING_VOLTAGE - 0.1, BALANCING_VOLTAGE, MAX_CELL_VOLTAGE]  # [min, ... ,max]; low voltage: limiting current from grid

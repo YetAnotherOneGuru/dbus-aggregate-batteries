@@ -11,7 +11,13 @@ from dbus.mainloop.glib import DBusGMainLoop  # noqa: E402
 
 
 class DbusMon:
+    """DBus monitoring class for monitoring and managing battery-related services.
+
+    Provides functionality to monitor and interact with various Victron Energy services
+    over DBus, including batteries, solar chargers, and system settings.
+    """
     def __init__(self):
+        """Initialize the DBus monitor with the list of services and paths to monitor."""
         dummy = {"code": None, "whenToLog": "configChange", "accessLevel": None}
         self.monitorlist = {
             "com.victronenergy.battery": {
@@ -112,9 +118,18 @@ class DbusMon:
         self.dbusmon = DbusMonitor(self.monitorlist)
 
     def print_values(self, service, mon_list):
+        """Print all monitored values for a service.
+
+        Args:
+            service: The DBus service name to query
+            mon_list: The monitor list key corresponding to the service type
+
+        Returns:
+            bool: Always returns True
+        """
         for path in self.monitorlist[mon_list]:
-            logging.info("%s: %s" % (path, self.dbusmon.get_value(service, path)))
-        logging.info("\n")
+            logging.info(f"{path}: {self.dbusmon.get_value(service, path)}")
+        logging.info(f"\n")
         return True
 
 
@@ -124,6 +139,11 @@ class DbusMon:
 
 
 def main():
+    """Test the DbusMon class by printing settings values and changing a setting.
+
+    Sets up the DBus monitor, prints values for the settings service,
+    and sets the OvervoltageFeedIn setting to 0.
+    """
     logging.basicConfig(level=logging.INFO)
     DBusGMainLoop(set_as_default=True)
     dbusmon = DbusMon()
@@ -138,7 +158,7 @@ def main():
 
     # GLib.timeout_add(1000, dbusmon.print_values, 'com.victronenergy.battery.ttyUSB2')
     # Start and run the mainloop
-    # logging.info("Battery monitor: Starting mainloop.\n")
+    # logging.info(f"Battery monitor: Starting mainloop.\n")
     # mainloop = GLib.MainLoop()
     # mainloop.run()
 
