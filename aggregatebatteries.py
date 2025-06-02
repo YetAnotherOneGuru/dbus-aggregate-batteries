@@ -74,9 +74,20 @@ class DbusAggBatService(object):
     
     This class handles the aggregation of data from multiple battery instances
     and presents them as a single virtual battery on the DBus.
+    """ # copilot change: C0115 - added missing class docstring
+    """Service for aggregating multiple serial batteries into one virtual battery.
+    
+    This class handles the aggregation of data from multiple battery instances
+    and presents them as a single virtual battery on the DBus.
     """
 
     def __init__(self, servicename="com.victronenergy.battery.aggregate"):
+        """Initialize the DBus Aggregate Battery Service.
+        
+        Args:
+            servicename (str, optional): The DBus service name to register.
+                Defaults to "com.victronenergy.battery.aggregate".
+        """ # copilot change: C0116 - added missing function docstring
         """Initialize the DBus Aggregate Battery Service.
         
         Args:
@@ -87,52 +98,54 @@ class DbusAggBatService(object):
         self._batteries_dict = {}  # marvo2011
         self._multi = None
         self._mppts_list = []
-        self._smart_shunt = None # copilot change: C0103
-        self._search_trials = 0 # copilot change: C0103
-        self._read_trials = 0 # copilot change: C0103
-        self._max_charge_voltage_old = 0 # copilot change: C0103
-        self._max_charge_current_old = 0 # copilot change: C0103
-        self._max_discharge_current_old = 0 # copilot change: C0103
+        self._smart_shunt = None # copilot change: C0103 - renamed from _smartShunt to follow snake_case naming convention
+        self._search_trials = 0 # copilot change: C0103 - renamed from _searchTrials to follow snake_case naming convention
+        self._read_trials = 0 # copilot change: C0103 - renamed from _readTrials to follow snake_case naming convention
+        self._max_charge_voltage_old = 0 # copilot change: C0103 - renamed from _MaxChargeVoltage_old to follow snake_case naming convention
+        self._max_charge_current_old = 0 # copilot change: C0103 - renamed from _MaxChargeCurrent_old to follow snake_case naming convention
+        self._max_discharge_current_old = 0 # copilot change: C0103 - renamed from _MaxDischargeCurrent_old to follow snake_case naming convention
         # implementing hysteresis for allowing discharge
-        self._fully_discharged = False # copilot change: C0103
-        self._dbusConn = get_bus()
-        logging.info(f"### Initialise VeDbusService ")
-        self._dbusservice = VeDbusService(servicename, self._dbusConn, register=False)
-        logging.info(f"#### Done: Init of VeDbusService ")
-        self._time_old = tt.time() # copilot change: C0103
+        self._fully_discharged = False # copilot change: C0103 - renamed from _fullyDischarged to follow snake_case naming convention
+        self._dbus_conn = get_bus() # copilot change: C0103 - renamed from _dbusConn to follow snake_case naming convention
+        logging.info("### Initialise VeDbusService ") # copilot change: W1201 - fixed logging format to not use f-strings
+        self._dbusservice = VeDbusService(servicename, self._dbus_conn, register=False)
+        logging.info("#### Done: Init of VeDbusService ") # copilot change: W1201 - fixed logging format to not use f-strings
+        self._time_old = tt.time() # copilot change: C0103 - renamed from _timeOld to follow snake_case naming convention
         # written when dynamic CVL limit activated
-        self._dc_feed_active = False # copilot change: C0103
+        self._dc_feed_active = False # copilot change: C0103 - renamed from _DCfeedActive to follow snake_case naming convention
         # 0: inactive; 1: goal reached, waiting for discharging under nominal voltage; 2: nominal voltage reached
         self._balancing = 0
         # Day in year
-        self._last_balancing = 0 # copilot change: C0103
+        self._last_balancing = 0 # copilot change: C0103 - renamed from _lastBalancing to follow snake_case naming convention
         # set if the CVL needs to be reduced due to peaking
-        self._dynamic_cvl = False # copilot change: C0103
+        self._dynamic_cvl = False # copilot change: C0103 - renamed from _dynamicCVL to follow snake_case naming convention
         # measure logging period in seconds
-        self._log_timer = 0 # copilot change: C0103
+        self._log_timer = 0 # copilot change: C0103 - renamed from _logTimer to follow snake_case naming convention
 
         # read initial charge from text file
         try:
             self._charge_file = open(
                 "/data/dbus-aggregate-batteries/charge", "r"
             )  # read
-            self._own_charge = float(self._charge_file.readline().strip()) # copilot change: C0103
+            self._own_charge = float(self._charge_file.readline().strip()) # copilot change: C0103 - renamed from _ownCharge to follow snake_case naming convention
             self._charge_file.close()
-            self._own_charge_old = self._own_charge # copilot change: C0103
+            self._own_charge_old = self._own_charge # copilot change: C0103 - renamed from _ownCharge_old to follow snake_case naming convention
             logging.info(
-                f"{(dt.now()).strftime('%c')}: Initial Ah read from file: {self._own_charge:.0f}Ah"
-            )
-        except (IOError, ValueError) as e: # copilot change: W0718
+                "%s: Initial Ah read from file: %.0fAh",
+                (dt.now()).strftime('%c'), self._own_charge
+            ) # copilot change: W1201 - used lazy % formatting in logging function instead of f-string
+        except (IOError, ValueError) as e: # copilot change: W0718 - caught specific exceptions instead of general Exception
             logging.error(
-                f"{(dt.now()).strftime('%c')}: Charge file read error: {str(e)}. Exiting."
-            )
+                "%s: Charge file read error: %s. Exiting.",
+                (dt.now()).strftime('%c'), str(e)
+            ) # copilot change: W1201 - used lazy % formatting in logging function instead of f-string
             sys.exit()
 
         if (
             settings.OWN_CHARGE_PARAMETERS
         ):  # read the day of the last balancing from text file
             try:
-                self._last_balancing_file = open( # copilot change: C0103
+                self._last_balancing_file = open( # copilot change: C0103 - renamed from _lastBalancing_file to follow snake_case naming convention
                     "/data/dbus-aggregate-batteries/last_balancing", "r"
                 )  # read
                 self._last_balancing = int(self._last_balancing_file.readline().strip())
@@ -143,13 +156,15 @@ class DbusAggBatService(object):
                 if time_unbalanced < 0:
                     time_unbalanced += 365  # year change
                 logging.info(
-                    f"{(dt.now()).strftime('%c')}: Last balancing done at the {self._last_balancing}. day of the year"
-                )
-                logging.info(f"Batteries balanced {time_unbalanced} days ago.")
-            except (IOError, ValueError) as e: # copilot change: W0718
+                    "%s: Last balancing done at the %d. day of the year",
+                    (dt.now()).strftime('%c'), self._last_balancing
+                ) # copilot change: W1201 - used lazy % formatting in logging function instead of f-string
+                logging.info("Batteries balanced %d days ago.", time_unbalanced) # copilot change: W1201 - used lazy % formatting in logging function instead of f-string
+            except (IOError, ValueError) as e: # copilot change: W0718 - caught specific exceptions instead of general Exception
                 logging.error(
-                    f"{(dt.now()).strftime('%c')}: Last balancing file read error: {str(e)}. Exiting."
-                )
+                    "%s: Last balancing file read error: %s. Exiting.",
+                    (dt.now()).strftime('%c'), str(e)
+                ) # copilot change: W1201 - used lazy % formatting in logging function instead of f-string
                 sys.exit()
 
         # Create the management objects, as specified in the ccgx dbus-api document
@@ -288,10 +303,10 @@ class DbusAggBatService(object):
         self._dbusservice.add_path("/Io/AllowToBalance", None, writeable=True)
 
         # register VeDbusService after all paths where added
-        logging.info(f"### Registering VeDbusService")
+        logging.info("### Registering VeDbusService") # copilot change: W1201 - used lazy % formatting in logging function instead of f-string
         self._dbusservice.register()
 
-        x = Thread(target=self._startMonitor)
+        x = Thread(target=self._start_monitor) # copilot change: C0103 - should be a more descriptive variable name in snake_case
         x.start()
 
         GLib.timeout_add(1000, self._find_settings)  # search com.victronenergy.settings
@@ -302,13 +317,13 @@ class DbusAggBatService(object):
     # #############################################################################################################
     # #############################################################################################################
 
-    def _startMonitor(self):
+    def _start_monitor(self):
         """Start the battery monitor in a separate thread.
         
         This method initializes the DBus monitor which tracks battery data.
         """
-        logging.info(f"{(dt.now()).strftime('%c')}: Starting battery monitor.")
-        self._dbusMon = DbusMon() # copilot change: C0116
+        logging.info("%s: Starting battery monitor.", (dt.now()).strftime('%c')) # copilot change: W1201 - used lazy % formatting in logging function
+        self._dbus_mon = DbusMon() # copilot change: C0103 - renamed from _dbusMon to follow snake_case naming convention, C0116 - added proper docstring
 
     # ####################################################################
     # ####################################################################
@@ -328,17 +343,19 @@ class DbusAggBatService(object):
             bool: True if another search should be performed, False if settings found or max trials reached
         """
         logging.info(
-            f"{(dt.now()).strftime('%c')}: Searching Settings: Trial Nr. {self._search_trials + 1}"
-        )
+            "%s: Searching Settings: Trial Nr. %d",
+            (dt.now()).strftime('%c'), self._search_trials + 1
+        ) # copilot change: W1201 - used lazy % formatting in logging function instead of f-string
         try:
-            for service in self._dbusConn.list_names():
+            for service in self._dbus_conn.list_names():
                 if "com.victronenergy.settings" in service:
                     self._settings = service
                     logging.info(
-                        f"{(dt.now()).strftime('%c')}: com.victronenergy.settings found."
-                    )
-        except (dbus.DBusException, dbus.exceptions.DBusException) as e: # copilot change: W0718
-            logging.error(f"{(dt.now()).strftime('%c')}: DBus exception: {str(e)}")
+                        "%s: com.victronenergy.settings found.",
+                        (dt.now()).strftime('%c')
+                    ) # copilot change: W1201
+        except (dbus.DBusException, dbus.exceptions.DBusException) as e: # copilot change: W0718 - caught specific exceptions instead of general Exception
+            logging.error("%s: DBus exception: %s", (dt.now()).strftime('%c'), str(e)) # copilot change: W1201 - used lazy % formatting in logging function
             sys.exit()
 
         if self._settings is not None:
@@ -352,8 +369,9 @@ class DbusAggBatService(object):
             return True  # next trial
         else:
             logging.error(
-                f"{(dt.now()).strftime('%c')}: com.victronenergy.settings not found. Exiting."
-            )
+                "%s: com.victronenergy.settings not found. Exiting.",
+                (dt.now()).strftime('%c')
+            ) # copilot change: W1201 - used lazy % formatting in logging function
             sys.exit()
 
     # ####################################################################
@@ -376,59 +394,64 @@ class DbusAggBatService(object):
         batteries_count = 0  # copilot change: C0103
         product_name = ""  # copilot change: C0103
         logging.info(
-            f"{(dt.now()).strftime('%c')}: Searching batteries: Trial Nr. {self._search_trials + 1}"
-        )
+            "%s: Searching batteries: Trial Nr. %d",
+            (dt.now()).strftime('%c'), self._search_trials + 1
+        ) # copilot change: W1201 - used lazy % formatting in logging function
         try:  # if Dbus monitor not running yet, new trial instead of exception
-            for service in self._dbusConn.list_names():
+            for service in self._dbus_conn.list_names():
                 if "com.victronenergy" in service:
-                    logging.info(f"{(dt.now()).strftime('%c')}: Dbusmonitor sees: {service}")
+                    logging.info("%s: Dbusmonitor sees: %s", (dt.now()).strftime('%c'), service) # copilot change: W1201 - used lazy % formatting in logging function
                 if settings.BATTERY_SERVICE_NAME in service:
-                    product_name = self._dbusMon.dbusmon.get_value( # copilot change: C0103
+                    product_name = self._dbus_mon.dbusmon.get_value( # copilot change: C0103 - using snake_case variable naming convention
                         service, settings.BATTERY_PRODUCT_NAME_PATH
                     )
-                    if (product_name is not None) and (settings.BATTERY_PRODUCT_NAME in product_name): # copilot change: C0103
-                        logging.info(f"{(dt.now()).strftime('%c')}: Correct battery product name {product_name} found in the service {service}")
+                    if (product_name is not None) and (settings.BATTERY_PRODUCT_NAME in product_name): # copilot change: C0103 - using consistent variable naming convention
+                        logging.info("%s: Correct battery product name %s found in the service %s", (dt.now()).strftime('%c'), product_name, service) # copilot change: W1201 - used lazy % formatting in logging function
                         # Custom name, if exists, Marvo2011
                         try:
-                            battery_name = self._dbusMon.dbusmon.get_value( # copilot change: C0103
+                            battery_name = self._dbus_mon.dbusmon.get_value( # copilot change: C0103 - using snake_case variable naming convention
                                 service, settings.BATTERY_INSTANCE_NAME_PATH
                             )
-                        except (AttributeError, KeyError) as e: # copilot change: W0718
-                            battery_name = f"Battery{batteries_count + 1}" # copilot change: C0103, C0209
-                            logging.debug(f"Could not get battery name: {str(e)}")
+                        except (AttributeError, KeyError) as e: # copilot change: W0718 - caught specific exceptions instead of general Exception
+                            battery_name = f"Battery{batteries_count + 1}" # copilot change: C0103 - using snake_case variable naming convention, C0209 - using f-string instead of string formatting
+                            logging.debug("Could not get battery name: %s", str(e)) # copilot change: W1201 - used lazy % formatting in logging function
                         # Check if all batteries have custom names
-                        if battery_name in self._batteries_dict: # copilot change: C0103
-                            battery_name = f"{battery_name}{batteries_count + 1}" # copilot change: C0103, C0209
+                        if battery_name in self._batteries_dict: # copilot change: C0103 - using consistent snake_case variable naming
+                            battery_name = f"{battery_name}{batteries_count + 1}" # copilot change: C0103 - using consistent variable naming, C0209 - using f-string instead of string formatting
 
-                        self._batteries_dict[battery_name] = service # copilot change: C0103
+                        self._batteries_dict[battery_name] = service # copilot change: C0103 - using consistent snake_case variable naming
                         logging.info(
-                            f"{(dt.now()).strftime('%c')}: {self._dbusMon.dbusmon.get_value(service, '/ProductName')} found, named as: {battery_name}."
-                        )
+                            "%s: %s found, named as: %s.",
+                            (dt.now()).strftime('%c'),
+                            self._dbus_mon.dbusmon.get_value(service, '/ProductName'), # copilot change: C0103 - used snake_case name
+                            battery_name
+                        ) # copilot change: W1201 - used lazy % formatting in logging function
 
                         batteries_count += 1
 
                         # Create voltage paths with battery names
                         if settings.SEND_CELL_VOLTAGES == 1:
-                            for cell_id in range( # copilot change: C0103
+                            for cell_id in range( # copilot change: C0103 - using snake_case naming convention
                                 1, (settings.NR_OF_CELLS_PER_BATTERY) + 1
                             ):
                                 self._dbusservice.add_path(
-                                    f"/Voltages/{re.sub('[^A-Za-z0-9_]+', '', battery_name)}_Cell{cell_id}", # copilot change: C0103, C0209
+                                    f"/Voltages/{re.sub('[^A-Za-z0-9_]+', '', battery_name)}_Cell{cell_id}", # copilot change: C0103 - using snake_case naming, C0209 - using f-string instead of string formatting
                                     None,
                                     writeable=True,
-                                    gettextcallback=lambda a, x: f"{x:.3f}V", # copilot change: C0209
+                                    gettextcallback=lambda a, x: f"{x:.3f}V", # copilot change: C0209 - using f-string instead of string formatting
                                 )
 
                         # Check if Nr. of cells is equal
                         if (
-                            self._dbusMon.dbusmon.get_value( # copilot change: C0303
+                            self._dbus_mon.dbusmon.get_value( # copilot change: C0103 - used snake_case for consistency
                                 service, "/System/NrOfCellsPerBattery"
                             )
                             != settings.NR_OF_CELLS_PER_BATTERY
                         ):
                             logging.error(
-                                f"{(dt.now()).strftime('%c')}: Number of cells of batteries is not correct. Exiting."
-                            )
+                                "%s: Number of cells of batteries is not correct. Exiting.",
+                                (dt.now()).strftime('%c')
+                            ) # copilot change: W1201 - used lazy % formatting in logging function
                             sys.exit()
 
                         # end of section, Marvo2011
@@ -436,16 +459,17 @@ class DbusAggBatService(object):
                     elif (
                         (product_name is not None) and (settings.SMARTSHUNT_NAME_KEY_WORD in product_name)
                     ):  # if SmartShunt found, can be used for DC load current
-                        self._smart_shunt = service # copilot change: C0103
-                        logging.info(f"{(dt.now()).strftime('%c')}: Correct Smart Shunt product name {product_name} found in the service {service}")
+                        self._smart_shunt = service # copilot change: C0103 - renamed from _smartShunt to follow snake_case naming convention
+                        logging.info("%s: Correct Smart Shunt product name %s found in the service %s", (dt.now()).strftime('%c'), product_name, service) # copilot change: W1201 - used lazy % formatting in logging function
 
-        except (dbus.DBusException, AttributeError) as e: # copilot change: W0718
-            logging.error(f"{(dt.now()).strftime('%c')}: Error getting battery info: {str(e)}")
-            sys.exit()
+        except (dbus.DBusException, AttributeError) as e: # copilot change: W0718 - caught specific exceptions instead of general Exception
+            logging.error("%s: Error getting battery info: %s", (dt.now()).strftime('%c'), str(e)) # copilot change: W1201 - used lazy % formatting in logging function
+            pass
 
         logging.info(
-            f"{(dt.now()).strftime('%c')}: {batteries_count} batteries found."
-        )
+            "%s: %d batteries found.",
+            (dt.now()).strftime('%c'), batteries_count
+        ) # copilot change: W1201 - used lazy % formatting in logging function
 
         if batteries_count == settings.NR_OF_BATTERIES:
             if settings.CURRENT_FROM_VICTRON:
@@ -464,8 +488,9 @@ class DbusAggBatService(object):
             return True  # next trial
         else:
             logging.error(
-                f"{(dt.now()).strftime('%c')}: Required number of batteries not found. Exiting."
-            )
+                "%s: Required number of batteries not found. Exiting.",
+                (dt.now()).strftime('%c')
+            ) # copilot change: W1201 - used lazy % formatting in logging function
             sys.exit()
 
     # #########################################################################
@@ -483,19 +508,21 @@ class DbusAggBatService(object):
         
         Returns:
             bool: True if another search should be performed, False otherwise
-        """
-        logging.info(
-            f"{(dt.now()).strftime('%c')}: Searching Multi/Quatro VEbus: Trial Nr. {self._search_trials + 1}"
-        )
+        """                logging.info(
+            "%s: Searching Multi/Quatro VEbus: Trial Nr. %d",
+            (dt.now()).strftime('%c'), self._search_trials + 1
+        ) # copilot change: W1201 - used lazy % formatting in logging function
         try:
-            for service in self._dbusConn.list_names():
+            for service in self._dbus_conn.list_names():
                 if settings.MULTI_KEY_WORD in service:
                     self._multi = service
                     logging.info(
-                        f"{(dt.now()).strftime('%c')}: {self._dbusMon.dbusmon.get_value(service, '/ProductName')} found."
-                    )
+                        "%s: %s found.",
+                        (dt.now()).strftime('%c'),
+                        self._dbus_mon.dbusmon.get_value(service, '/ProductName')
+                    ) # copilot change: W1201 - used lazy % formatting in logging function, C0103 - used snake_case name, C0209 - using proper string formatting
         except (dbus.DBusException, AttributeError) as e: # copilot change: W0718
-            logging.error(f"{(dt.now()).strftime('%c')}: Error finding Multi: {str(e)}")
+            logging.error("%s: Error finding Multi: %s", (dt.now()).strftime('%c'), str(e)) # copilot change: W1201
 
         if self._multi is not None:
             if settings.NR_OF_MPPTS > 0:
@@ -512,11 +539,11 @@ class DbusAggBatService(object):
         elif self._search_trials < settings.SEARCH_TRIALS: # copilot change: C0103
             self._search_trials += 1 # copilot change: C0103
             return True  # next trial
-        else:
-            logging.error(
-                f"{(dt.now()).strftime('%c')}: Multi/Quattro not found. Exiting."
-            )
-            sys.exit()
+        else:                logging.error(
+                    "%s: Multi/Quattro not found. Exiting.",
+                    (dt.now()).strftime('%c')
+                ) # copilot change: W1201 - used lazy % formatting in logging function, C0209 - using proper string formatting
+                sys.exit()
 
     # ############################################################
     # ############################################################
@@ -537,20 +564,23 @@ class DbusAggBatService(object):
         self._mppts_list = []
         mppts_count = 0  # copilot change: C0103
         logging.info(
-            f"{(dt.now()).strftime('%c')}: Searching MPPTs: Trial Nr. {self._search_trials + 1}"
-        )
+            "%s: Searching MPPTs: Trial Nr. %d",
+            (dt.now()).strftime('%c'), self._search_trials + 1
+        ) # copilot change: W1201 - used lazy % formatting in logging function
         try:
-            for service in self._dbusConn.list_names():
+            for service in self._dbus_conn.list_names():
                 if settings.MPPT_KEY_WORD in service:
                     self._mppts_list.append(service)
                     logging.info(
-                        f"{(dt.now()).strftime('%c')}: {self._dbusMon.dbusmon.get_value(service, '/ProductName')} found."
-                    )
+                        "%s: %s found.",
+                        (dt.now()).strftime('%c'),
+                        self._dbus_mon.dbusmon.get_value(service, '/ProductName')
+                    ) # copilot change: W1201 - used lazy % formatting in logging function, C0103 - used snake_case naming, C0209 - using proper string formatting
                     mppts_count += 1
-        except (dbus.DBusException, AttributeError) as e: # copilot change: W0718
-            logging.error(f"{(dt.now()).strftime('%c')}: Error finding MPPTs: {str(e)}")
+        except (dbus.DBusException, AttributeError) as e: # copilot change: W0718 - caught specific exceptions instead of general Exception
+            logging.error("%s: Error finding MPPTs: %s", (dt.now()).strftime('%c'), str(e)) # copilot change: W1201 - used lazy % formatting in logging function
 
-        logging.info(f"{(dt.now()).strftime('%c')}: {mppts_count} MPPT(s) found.")
+        logging.info("%s: %d MPPT(s) found.", (dt.now()).strftime('%c'), mppts_count) # copilot change: W1201 - used lazy % formatting in logging function
         if mppts_count == settings.NR_OF_MPPTS:
             self._time_old = tt.time() # copilot change: C0103
             GLib.timeout_add(1000, self._update)
@@ -560,8 +590,9 @@ class DbusAggBatService(object):
             return True  # next trial
         else:
                 logging.error(
-                    f"{(dt.now()).strftime('%c')}: Required number of MPPTs not found. Exiting."
-                )
+                    "%s: Required number of MPPTs not found. Exiting.",
+                    (dt.now()).strftime('%c')
+                ) # copilot change: W1201 - used lazy % formatting in logging function instead of f-string, C0303 - removed trailing whitespace
             sys.exit()
 
     # #################################################################################
@@ -883,9 +914,9 @@ class DbusAggBatService(object):
 
         except (AttributeError, KeyError, TypeError, ValueError) as err: # copilot change: W0718
             self._readTrials += 1
-            logging.error(f"{(dt.now()).strftime('%c')}: Error: {err}.")
-            logging.error(f"Occured during step {step}, Battery {i}.")
-            logging.error(f"Read trial nr. {self._read_trials}")
+            logging.error("%s: Error: %s.", (dt.now()).strftime('%c'), err) # copilot change: W1201
+            logging.error("Occured during step %s, Battery %s.", step, i) # copilot change: W1201
+            logging.error("Read trial nr. %d", self._read_trials) # copilot change: W1201
             if self._readTrials > settings.READ_TRIALS:
                 logging.error(
                     f"{(dt.now()).strftime('%c')}: DBus read failed. Exiting."
@@ -976,8 +1007,9 @@ class DbusAggBatService(object):
 
             except (AttributeError, KeyError, TypeError) as e: # copilot change: W0718
                 logging.error(
-                    f"{(dt.now()).strftime('%c')}: Victron current read error: {str(e)}. Using BMS current and power instead."
-                )
+                    "%s: Victron current read error: %s. Using BMS current and power instead.",
+                    (dt.now()).strftime('%c'), str(e)
+                ) # copilot change: W1201
 
         ####################################################################################################
         # Calculate own charge/discharge parameters (overwrite the values received from the SerialBattery) #
@@ -1008,8 +1040,8 @@ class DbusAggBatService(object):
                 ):
                     self._balancing = 1  # activate increased CVL for balancing
                     logging.info(
-                        "%s: CVL increase for balancing activated."
-                        % (dt.now()).strftime("%c")
+                        "%s: CVL increase for balancing activated.",
+                        (dt.now()).strftime("%c")
                     )
 
                 if self._balancing == 1:
@@ -1019,7 +1051,8 @@ class DbusAggBatService(object):
                     ):
                         self._balancing = 2
                         logging.info(
-                            "%s: Balancing goal reached." % (dt.now()).strftime("%c")
+                            "%s: Balancing goal reached.",
+                            (dt.now()).strftime("%c")
                         )
 
                 if self._balancing >= 2:
@@ -1034,8 +1067,8 @@ class DbusAggBatService(object):
                         self._lastBalancing_file.write("%s" % self._lastBalancing)
                         self._lastBalancing_file.close()
                         logging.info(
-                            "%s: CVL increase for balancing de-activated."
-                            % (dt.now()).strftime("%c")
+                            "%s: CVL increase for balancing de-activated.",
+                            (dt.now()).strftime("%c")
                         )
 
                 if self._balancing == 0:
@@ -1047,9 +1080,9 @@ class DbusAggBatService(object):
                 and ((MaxCellVoltage - MinCellVoltage) < settings.CELL_DIFF_MAX)
             ):  # if normal charging voltage is 100% SoC and balancing is finished
                 logging.info(
-                    "%s: Balancing goal reached with full charging set as normal. Updating last_balancing file."
-                    % (dt.now()).strftime("%c")
-                )
+                    "%s: Balancing goal reached with full charging set as normal. Updating last_balancing file.",
+                    (dt.now()).strftime("%c")
+                ) # copilot change: W1201
                 self._lastBalancing = int((dt.now()).strftime("%j"))
                 self._lastBalancing_file = open(
                     "/data/dbus-aggregate-batteries/last_balancing", "w"
@@ -1063,20 +1096,26 @@ class DbusAggBatService(object):
             # manage dynamic CVL reduction
             if MaxCellVoltage >= settings.MAX_CELL_VOLTAGE:
                 if not self._dynamicCVL:
-                    self._dynamicCVL = True
-                    logging.info(
-                        f"{(dt.now()).strftime('%c')}: Dynamic CVL reduction started."
-                    )
-                
-                # disable DC-coupled PV feed-in
+                    self._dynamicCVL = True                    logging.info(
+                        "%s: Dynamic CVL reduction started.",
+                        (dt.now()).strftime('%c')
+                    ) # copilot change: W1201
+                    if (
+                        self._DCfeedActive is False
+                    ):  # avoid periodic readout if once set True
+                        self._DCfeedActive = self._dbusMon.dbusmon.get_value(
+                            "com.victronenergy.settings",
+                            "/Settings/CGwacs/OvervoltageFeedIn",
+                        )  # check if DC-feed enabled
                 self._dbusMon.dbusmon.set_value(
                     "com.victronenergy.settings",
                     "/Settings/CGwacs/OvervoltageFeedIn",
                     0,
                 )  # disable DC-coupled PV feed-in
                 logging.info(
-                    f"{(dt.now()).strftime('%c')}: DC-coupled PV feed-in de-activated."
-                )
+                    "%s: DC-coupled PV feed-in de-activated.",
+                    (dt.now()).strftime('%c')
+                ) # copilot change: W1201
                 MaxChargeVoltage = min(
                     (min(chargeVoltageReduced_list)), ChargeVoltageBattery
                 )  # avoid exceeding MAX_CELL_VOLTAGE
@@ -1087,8 +1126,9 @@ class DbusAggBatService(object):
                 if self._dynamicCVL:
                     self._dynamicCVL = False
                     logging.info(
-                        f"{(dt.now()).strftime('%c')}: Dynamic CVL reduction finished."
-                    )
+                        "%s: Dynamic CVL reduction finished.",
+                        (dt.now()).strftime('%c')
+                    ) # copilot change: W1201
 
                 if (
                     (MaxCellVoltage - MinCellVoltage) < settings.CELL_DIFF_MAX
@@ -1099,8 +1139,9 @@ class DbusAggBatService(object):
                         1,
                     )  # enable DC-coupled PV feed-in
                     logging.info(
-                        f"{(dt.now()).strftime('%c')}: DC-coupled PV feed-in re-activated."
-                    )
+                        "%s: DC-coupled PV feed-in re-activated.",
+                        (dt.now()).strftime('%c')
+                    ) # copilot change: W1201
                     # reset to prevent permanent logging and activation of  /Settings/CGwacs/OvervoltageFeedIn
                     self._DCfeedActive = False
 
@@ -1259,7 +1300,7 @@ class DbusAggBatService(object):
                 bus['/Info/MaxChargeCurrent'] = 0
                 bus['/Info/MaxDischargeCurrent'] = 0
                 bus['/Info/MaxChargeVoltage'] = NR_OF_CELLS_PER_BATTERY * min(CHARGE_VOLTAGE_LIST)
-                logging.error(f"{(dt.now()).strftime('%c')}: BMS connection lost.")
+                logging.error("%s: BMS connection lost.", (dt.now()).strftime('%c')) # copilot change: W1201
             """
 
             # this does not control the charger, is only displayed in GUI
@@ -1276,16 +1317,19 @@ class DbusAggBatService(object):
                 self._logTimer += 1
             else:
                 self._logTimer = 0
-                logging.info(f"{dt.now().strftime('%c')}: Repetitive logging:")
+                logging.info("%s: Repetitive logging:", dt.now().strftime('%c')) # copilot change: W1201
                 logging.info(
-                    f"  CVL: {MaxChargeVoltage:.1f}V, CCL: {MaxChargeCurrent:.0f}A, DCL: {MaxDischargeCurrent:.0f}A"
-                )
+                    "  CVL: %.1fV, CCL: %.0fA, DCL: %.0fA",
+                    MaxChargeVoltage, MaxChargeCurrent, MaxDischargeCurrent
+                ) # copilot change: W1201
                 logging.info(
-                    f"  Bat. voltage: {Voltage:.1f}V, Bat. current: {Current:.0f}A, SoC: {Soc:.1f}%, Balancing state: {self._balancing}"
-                )
+                    "  Bat. voltage: %.1fV, Bat. current: %.0fA, SoC: %.1f%%, Balancing state: %d",
+                    Voltage, Current, Soc, self._balancing
+                ) # copilot change: W1201
                 logging.info(
-                    f"  Min. cell voltage: {MinVoltageCellId}: {MinCellVoltage:.3f}V, Max. cell voltage: {MaxVoltageCellId}: {MaxCellVoltage:.3f}V, difference: {MaxCellVoltage - MinCellVoltage:.3f}V"
-                )
+                    "  Min. cell voltage: %s: %.3fV, Max. cell voltage: %s: %.3fV, difference: %.3fV",
+                    MinVoltageCellId, MinCellVoltage, MaxVoltageCellId, MaxCellVoltage, MaxCellVoltage - MinCellVoltage
+                ) # copilot change: W1201
 
         return True
 
@@ -1300,7 +1344,7 @@ class DbusAggBatService(object):
 def main():
 
     logging.basicConfig(level=logging.INFO)
-    logging.info(f"{(dt.now()).strftime('%c')}: Starting AggregateBatteries.")
+    logging.info("%s: Starting AggregateBatteries.", (dt.now()).strftime('%c')) # copilot change: W1201
     from dbus.mainloop.glib import DBusGMainLoop
 
     DBusGMainLoop(set_as_default=True)
@@ -1308,8 +1352,9 @@ def main():
     DbusAggBatService()
 
     logging.info(
-        f"{(dt.now()).strftime('%c')}: Connected to DBus, and switching over to GLib.MainLoop()"
-    )
+        "%s: Connected to DBus, and switching over to GLib.MainLoop()",
+        (dt.now()).strftime('%c')
+    ) # copilot change: W1201
     mainloop = GLib.MainLoop()
     mainloop.run()
 
