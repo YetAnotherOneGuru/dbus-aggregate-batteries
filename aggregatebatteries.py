@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+"""
 """
 Service to aggregate multiple serial batteries https://github.com/Louisvdw/dbus-serialbattery
 to one virtual battery.
