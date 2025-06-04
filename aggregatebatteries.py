@@ -1107,7 +1107,7 @@ class DbusAggBatService(object):
                     
                     
                     # reset to prevent permanent logging and activation of  /Settings/CGwacs/OvervoltageFeedIn
-                     self._dc_feed_active = False  # copilot change: C0103
+                    self._dc_feed_active = False  # copilot change: C0103
 
             if (min_cell_voltage <= settings.MIN_CELL_VOLTAGE) and settings.ZERO_SOC:
                 self._own_charge = 0  # copilot change: C0103
