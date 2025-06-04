@@ -508,7 +508,8 @@ class DbusAggBatService(object):
         
         Returns:
             bool: True if another search should be performed, False otherwise
-        """                logging.info(
+        """                
+        logging.info(
             "%s: Searching Multi/Quatro VEbus: Trial Nr. %d",
             (dt.now()).strftime('%c'), self._search_trials + 1
         ) # copilot change: W1201 - used lazy % formatting in logging function
