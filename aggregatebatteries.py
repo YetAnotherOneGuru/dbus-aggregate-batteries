@@ -544,7 +544,7 @@ class DbusAggBatService(object):
                     "%s: Multi/Quattro not found. Exiting.",
                     (dt.now()).strftime('%c')
                 ) # copilot change: W1201 - used lazy % formatting in logging function, C0209 - using proper string formatting
-                sys.exit()
+        sys.exit()
 
     # ############################################################
     # ############################################################
