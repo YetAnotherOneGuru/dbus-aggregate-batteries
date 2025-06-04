@@ -594,7 +594,7 @@ class DbusAggBatService(object):
                     "%s: Required number of MPPTs not found. Exiting.",
                     (dt.now()).strftime('%c')
                 ) # copilot change: W1201 - used lazy % formatting in logging function instead of f-string, C0303 - removed trailing whitespace
-            sys.exit()
+        sys.exit()
 
     # #################################################################################
     # #################################################################################
