@@ -1340,8 +1340,8 @@ def main():
 
     logging.info(f"{dt.now().strftime('%c')}: Connected to dbus, and switching over to D-Bus main loop.")  # copilot change: C0303
 
-        mainloop = GLib.MainLoop()
-        mainloop.run()
+    mainloop = GLib.MainLoop()
+    mainloop.run()
 
 
 if __name__ == "__main__":
