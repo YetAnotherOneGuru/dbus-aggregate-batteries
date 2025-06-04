@@ -1097,7 +1097,8 @@ class DbusAggBatService(object):
             # manage dynamic CVL reduction
             if MaxCellVoltage >= settings.MAX_CELL_VOLTAGE:
                 if not self._dynamicCVL:
-                    self._dynamicCVL = True                    logging.info(
+                    self._dynamicCVL = True                    
+                    logging.info(
                         "%s: Dynamic CVL reduction started.",
                         (dt.now()).strftime('%c')
                     ) # copilot change: W1201
